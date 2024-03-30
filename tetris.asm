@@ -73,7 +73,10 @@ DISPLAY_HEIGHT:
 
 main:
     jal draw_border
-   
+    
+    li $v0, 10     # syscall code for exit
+    syscall        # perform syscall to exit program
+
 
 
 # game_loop:
@@ -345,8 +348,8 @@ draw_border:
     move $a0, $v0 # move to a0 (x)
     move $a1, $v1 # move to a1 (y)    
     lw $a2, BOARD_HEIGHT # load board_height for line_length
-    add $a2, $a2, 2  # add one to account for border being 2 bigger than the board
-    lw $a3, red # load in color
+    add $a2, $a2, 1  # add one to account for border being 2 bigger than the board
+    lw $a3, white # load in color
     li $s7, 1 # set line type
     jal draw_vertical_line
     
@@ -359,7 +362,7 @@ draw_border:
     add $a0, $a0, $t0  # x_coord = board_width + 1
     lw $a2, BOARD_HEIGHT # load board_height for line_length
     add $a2, $a2, 1  # add one to account for border being 2 bigger than the board
-    lw $a3, red # load in color
+    lw $a3, white # load in color
     li $s7, 1 # set line type
     jal draw_vertical_line
     
