@@ -315,13 +315,39 @@ draw_border:
 
 # Function that can draw a solid or dotted line, used to draw checkered board pattern and white border
 draw_horizontal_line:
+draw_horizontal_line:    
     # ARGUMENTS:
     # - $a0 starting x_coord
     # - $a1 starting y_coord
     # - $a2 line length
+    # - $a3 color
+    # - $s7 line_type (didn't want to use temp in case calc_offset_display overrode and didn't want to use s0 in case overriding piece pos)
     
     # RETURNS:
     # - Nothing
+    
+    # push return address onto stack
+    addi $sp, $sp, -4 # make space in stack
+    sw $ra, ($sp) # store return on stack
+    
+    jal calc_offset_display # calculate display offset to draw the pixel
+    # ARGUMENTS
+    # - $a0 x_coordinate
+    # - $a1 y_coordinate
+    
+    # RETURNS:
+    # - $v0 calculated offset for writing to display
+    
+    sw $a3 0($v0) # draw the pixel to display
+    
+    add $a0, $a0, $s7  # calculate incremented x_coord
+    sub $a2, $a2, $s7 # use $a2 to store line length left to draw
+    
+    bgt $a2, $zero, draw_horizontal_line # repeat until line is drawn
+    
+    lw $t9, ($sp) # load last return address to stack
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $t9 # return
     
     
 # Function that can draw a solid or dotted line, used to draw white border
@@ -330,6 +356,7 @@ draw_vertical_line:
     # - $a0 starting x_coord
     # - $a1 starting y_coord
     # - $a2 line length
+    # - $a3 color
     
     # RETURNS:
     # - Nothing
