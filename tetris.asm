@@ -85,6 +85,41 @@ game_loop:
     #5. Go back to 1
     b game_loop
 
+# Function that take display stats and board stats to decide where the border starts and ends
+# Python equivalent:
+# def center_border():
+    # global DISPLAY_WIDTH, DISPLAY_HEIGHT, UNIT_WIDTH, UNIT_HEIGHT, BOARD_WIDTH, BOARD_HEIGHT
+    # DISPLAY_WIDTH = DISPLAY_WIDTH // UNIT_WIDTH
+    # DISPLAY_HEIGHT = DISPLAY_HEIGHT // UNIT_HEIGHT
+    # x_coord = (DISPLAY_WIDTH - BOARD_WIDTH) // 2 - 1
+    # y_coord = (DISPLAY_HEIGHT - BOARD_HEIGHT) // 2 - 1
+    # return x_coord, y_coord -> calculate x_coord + board_width + 1, y_coord + board_height + 1 (bottom right coord)
+center_border:
+    # ARGUMENTS (not passed in, loaded from constants):
+    # - $a0 DISPLAY_WIDTH
+    # - $a1 DISPLAY_HEIGHT
+    # - $a2 BOARD_WIDTH
+    # - $a3 BOARD_HEIGHT
+    
+    # RETURNS:
+    # - $v0 x_coord
+    # - $v1 y_coord
+    
+    # Load in arguments
+    lw $a0, DISPLAY_WIDTH
+    lw $a1, DISPLAY_HEIGHT
+    lw $a2, BOARD_WIDTH
+    lw $a3, BOARD_HEIGHT
+    lw $t2, UNIT_WIDTH
+    lw $t3, UNIT_HEIGHT
+    
+    # Use $t2 and $t3 for intermediate temp values in the calculations
+    # calculate "new" display width and display height, divide them by unit width and unit hieght
+    div $a0, $t2 # divide display width by unit width
+    mflo $a0 # got "new" display width
+    div $a1, $t3 # divide display height by unit height
+    mflo $a1 # got "new" display height
+    
 
 
 # Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset for display
