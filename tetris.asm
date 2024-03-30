@@ -192,6 +192,60 @@ center_board:
     
     jr $ra # return
 
+# Function that takes in x, y coords and returns offset ADDRESS for display (origin at lower left corner)
+# def calc_offset_display(x_coordinate, y_coordinate):
+    # global DISPLAY_WIDTH, DISPLAY_HEIGHT, UNIT_WIDTH, UNIT_HEIGHT
+    # DISPLAY_WIDTH = DISPLAY_WIDTH // UNIT_WIDTH
+    # DISPLAY_HEIGHT = DISPLAY_HEIGHT // UNIT_HEIGHT
+    
+    # vertical_offset = y_coordinate * DISPLAY_WIDTH * 4  
+    # horizontal_offset = x_coordinate * 4
+    # return vertical_offset + horizontal_offset
+calc_offset_display:
+    # ARGUMENTS (not passed in, loaded from constants):
+    # - $t0 DISPLAY_WIDTH
+    # - $t1 DISPLAY_HEIGHT
+    # - $t2 UNIT_WIDTH
+    # - $t3 UNIT_HEIGHT
+    
+    # ACTUAL ARGUMENTS
+    # - $a0 x_coordinate
+    # - $a1 y_coordinate
+    
+    # RETURNS:
+    # - $v0 calculated offset for writing to display
+    
+    # Load in arguments
+    lw $t0, DISPLAY_WIDTH
+    lw $t1, DISPLAY_HEIGHT
+    lw $t2, UNIT_WIDTH
+    lw $t3, UNIT_HEIGHT
+    
+    # calculate "new" display width and display height, divide them by unit width and unit hieght
+    div $t0, $t2 # divide display width by unit width
+    mflo $t0 # got "new" display width
+    div $t1, $t3 # divide display height by unit height
+    mflo $t1 # got "new" display height
+
+    # use t4 and t5 to store offsets, store constant 4 in $t6 which represents the byte size
+    li $t6, 4
+    # calculate vertical offset and store it in t4
+    mul $t4, $a1, $t0  # multiply y coord with new display width
+    mul $t4, $t4, $t6  # multiply by 4
+    
+    # calculate horizontal offset and store in t5
+    mult $t5, $a0, $t6  # multiply x coord by 4
+    
+    # add vertical and horizontal offset together
+    add $v0, $t4, $t5
+    
+    # add base display address to $v0
+    lw $t0, ADDR_DSPL
+    add $v0, $v0, $t0
+    
+    jr $ra
+    
+
 
 # Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset for display
 
