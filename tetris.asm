@@ -140,6 +140,58 @@ center_border:
     
     jr $ra # return
 
+# Function that take display stats and board stats to decide where the board starts and ends
+# Python equivalent:
+# def center_board():
+    # global DISPLAY_WIDTH, DISPLAY_HEIGHT, UNIT_WIDTH, UNIT_HEIGHT, BOARD_WIDTH, BOARD_HEIGHT
+    # DISPLAY_WIDTH = DISPLAY_WIDTH // UNIT_WIDTH
+    # DISPLAY_HEIGHT = DISPLAY_HEIGHT // UNIT_HEIGHT
+    # x_coord = (DISPLAY_WIDTH - BOARD_WIDTH) // 2
+    # y_coord = (DISPLAY_HEIGHT - BOARD_HEIGHT) // 2
+    # return x_coord, y_coord
+center_board:
+    # ARGUMENTS (not passed in, loaded from constants):
+    # - $t0 DISPLAY_WIDTH
+    # - $t1 DISPLAY_HEIGHT
+    # - $t2 BOARD_WIDTH
+    # - $t3 BOARD_HEIGHT
+    
+    # RETURNS:
+    # - $v0 x_coord
+    # - $v1 y_coord
+    
+    # Load in arguments
+    lw $t0, DISPLAY_WIDTH
+    lw $t1, DISPLAY_HEIGHT
+    lw $t2, BOARD_WIDTH
+    lw $t3, BOARD_HEIGHT
+    lw $t4, UNIT_WIDTH
+    lw $t5, UNIT_HEIGHT
+    
+    # Use $t4 and $t5 for intermediate temp values in the calculations
+    # calculate "new" display width and display height, divide them by unit width and unit hieght
+    div $t0, $t4 # divide display width by unit width
+    mflo $t0 # got "new" display width
+    div $t1, $t5 # divide display height by unit height
+    mflo $t1 # got "new" display height
+    
+    # calculate (display_width - board_width)
+    sub $t4, $t0, $t2
+    # calculate (display_height - board_height)
+    sub $t5, $t1, $t3
+    
+    # store 2 in a register
+    li $t6, 2
+    # calculate (display_width - board_width) // 2
+    div $t4, $t6
+    mflo $v0 # store x_coord in return register
+    
+    # calculate (display_height - board_height) // 2
+    div $t5, $t6
+    mflo $v1 # store y_coord in return register
+    
+    jr $ra # return
+
 
 # Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset for display
 
