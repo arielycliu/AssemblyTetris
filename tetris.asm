@@ -309,5 +309,27 @@ calc_offset_board_ERROR:
     addi $sp, $sp, 4 # deallocate space on stack
     jr $t9 # return
 
+# Function that draws the white border
 draw_border:
+    # NO ARGS NO RETURN VALS
+
+# Function that can draw a solid or dotted line, used to draw checkered board pattern and white border
+draw_horizontal_line:
+    # ARGUMENTS:
+    # - $a0 starting x_coord
+    # - $a1 starting y_coord
+    # - $a2 line length
     
+    # RETURNS:
+    # - Nothing
+    
+    
+# Function that can draw a solid or dotted line, used to draw white border
+draw_vertical_line:
+    # ARGUMENTS:
+    # - $a0 starting x_coord
+    # - $a1 starting y_coord
+    # - $a2 line length
+    
+    # RETURNS:
+    # - Nothing
