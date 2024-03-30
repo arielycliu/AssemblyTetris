@@ -120,6 +120,25 @@ center_border:
     div $a1, $t3 # divide display height by unit height
     mflo $a1 # got "new" display height
     
+    
+    # calculate (display_width - board_width)
+    sub $t2, $a0, $a2
+    # calculate (display_height - board_height)
+    sub $t3, $a1, $a3
+    
+    # store 2 in a register
+    li $t4, 2
+    # calculate (display_width - board_width) // 2
+    div $t2, $t4
+    mflo $t2 # load result from division 
+    addi $v0, $t2, -1  # store x_coord - 1 in return register
+    
+    # calculate (display_height - board_height) // 2
+    div $t3, $t4
+    mflo $t3 # load result from division
+    addi $v1, $t3, -1  # store y_coord - 1 in return register
+    
+    jr $ra # return
 
 
 # Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset for display
