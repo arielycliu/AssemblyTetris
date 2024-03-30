@@ -6,6 +6,17 @@
 # - Base Address for Display:   0x10008000 ($gp)
 ##############################################################################
 
+######################## Memory Model Configuration ########################
+# - Display address:            $t0 (reload when using)
+# - Keyboard address:           $t1 (reload when using)
+# - Current piece orientation:  $s0
+# - Current piece x:            $s1
+# - Current piece y:            $s2
+# - First return address:       $s7
+# - Second return address:      $s6
+# v0-v1 (return) a0-a3 (arg) t0-t9 s0-s7
+##############################################################################
+
     .data
 ##############################################################################
 # Immutable Data
@@ -18,6 +29,15 @@ BOARD_WIDTH:
     .word 10
 BOARD_HEIGHT:
     .word 20
+    
+UNIT_WIDTH:
+    .word 8
+UNIT_HEIGHT:
+    .word 8
+DISPLAY_WIDTH:
+    .word 256
+DISPLAY_HEIGHT:
+    .word 256
 
 ##############################################################################
 # Mutable Data
@@ -33,6 +53,8 @@ BOARD_HEIGHT:
     white: 	       .word 0x00FFFFFF  # border color
     light_grey:    .word 0x00E0E0E0	 # checkered grid light color
 	dark_grey:     .word 0x007F7F7F  # checkered grid dark color
+	board_state:   .word 0:200       # used to store current pieces on the board (BOARD_WIDTH * BOARD_HEIGHT = 200)
+	                                 # each coordinate will store 0 if no piece is there or the name of the piece I, O, T, S, Z, J, L if it's the top left corner of the piece
     
 ##############################################################################
 # Code
@@ -41,7 +63,9 @@ BOARD_HEIGHT:
 	.globl main
 
 main:
-    
+    jal draw_border
+
+
 
 game_loop:
 	# 1a. Check if key has been pressed
@@ -53,3 +77,11 @@ game_loop:
 
     #5. Go back to 1
     b game_loop
+
+# Function that takes in x, y coords and returns offset for display
+
+
+# Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset for display
+
+draw_border:
+    
