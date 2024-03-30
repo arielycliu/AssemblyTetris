@@ -20,7 +20,8 @@
 # - Current piece orientation:  $s0
 # - Current piece x:            $s1
 # - Current piece y:            $s2
-# - Return address:             $t9 (where it's stored after popping from stack)
+# - Return address:             $t9 or $t8 (where it's stored when stack is inconvient)
+# - Line type argument:         $s7 (extra argument since we don't have enough a0-a3 registers, stores 1 for solid and 2 for dotted lines)
 # v0-v1 (return) a0-a3 (arg) t0-t9 s0-s7
 ##############################################################################
 
@@ -71,19 +72,20 @@ DISPLAY_HEIGHT:
 	.globl main
 
 main:
+    jal draw_border
+   
 
 
+# game_loop:
+	# # 1a. Check if key has been pressed
+    # # 1b. Check which key has been pressed
+    # # 2a. Check for collisions
+	# # 2b. Update locations (paddle, ball)
+	# # 3. Draw the screen
+	# # 4. Sleep
 
-game_loop:
-	# 1a. Check if key has been pressed
-    # 1b. Check which key has been pressed
-    # 2a. Check for collisions
-	# 2b. Update locations (paddle, ball)
-	# 3. Draw the screen
-	# 4. Sleep
-
-    #5. Go back to 1
-    b game_loop
+    # #5. Go back to 1
+    # b game_loop
 
 # Function that take display stats and board stats to decide where the border starts and ends
 # Python equivalent:
@@ -272,7 +274,7 @@ calc_offset_board:
     
     # push return address onto stack
     addi $sp, $sp, -4 # make space in stack
-    sw $ra, ($sp) # store return on stack
+    sw $ra, 0($sp) # store return on stack
     
     
     lw $t0, BOARD_WIDTH # load in global variables
@@ -298,23 +300,74 @@ calc_offset_board:
     # - $a1 y_coordinate
     jal calc_offset_display  # returns offset for writing to display in $v0
     
-    lw $t9, ($sp) # load last return address to stack
+    lw $ra, 0($sp) # load last return address to stack
     addi $sp, $sp, 4 # deallocate space on stack
-    jr $t9 # return
-    
-
+    jr $ra # return
+# Error function: returns -1 stored at $v0 if the new coordinate is invalid
 calc_offset_board_ERROR:
     li $v0, -1
-    lw $t9, ($sp) # load last return address to stack
+    lw $ra, 0($sp) # load last return address to stack
     addi $sp, $sp, 4 # deallocate space on stack
-    jr $t9 # return
+    jr $ra # return
 
-# Function that draws the white border
+# Function that draws the white border around the game board
 draw_border:
     # NO ARGS NO RETURN VALS
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    # TOP HORIZONTAL LINE
+    # return x_coord, y_coord -> calculate x_coord + board_width + 1, y_coord + board_height + 1 (bottom right coord)
+    jal center_border # returns coordinates of top left corner of border in v0, v1
+    move $a0, $v0 # move to a0
+    move $a1, $v1 # move to a1
+    lw $a2, BOARD_WIDTH # load board width for line length argument to draw_horizontal_line
+    add $a2, $a2, 2  # add 2 to board width to account for border being 2 wider and taller than the board
+    lw $a3, white # load in the color
+    li $s7, 1 # set the line type to solid    
+    jal draw_horizontal_line
+
+    # BOTTOM HORIZONTAL LINE
+    jal center_border # returns coordinates of top left corner of border in v0, v1
+    move $a0, $v0 # move to a0 (x)
+    move $a1, $v1 # move to a1 (y)
+    lw $t0, BOARD_HEIGHT # load board height to determine bottom horizontal line's y coord
+    addi $t0, $t0, 1    # add 1 to board height to accomodate for border being around the board and thus greater
+    add $a1, $a1, $t0  # y_coord = (board_height + 1)
+    lw $a2, BOARD_WIDTH # load board width for line length argument to draw_horizontal_line
+    add $a2, $a2, 2  # add 2 to board width to account for border being 2 wider and taller than the board
+    lw $a3, white # load in the color
+    li $s7, 1 # set the line type to solid  
+    jal draw_horizontal_line
+    
+    # LEFT VERTICAL LINE    
+    jal center_border # returns coordinates of top left corner of border in v0, v1
+    move $a0, $v0 # move to a0 (x)
+    move $a1, $v1 # move to a1 (y)    
+    lw $a2, BOARD_HEIGHT # load board_height for line_length
+    add $a2, $a2, 2  # add one to account for border being 2 bigger than the board
+    lw $a3, red # load in color
+    li $s7, 1 # set line type
+    jal draw_vertical_line
+    
+    # RIGHT VERTICAL LINE
+    jal center_border # returns coordinates of top left corner of border in v0, v1
+    move $a0, $v0 # move to a0 (x)
+    move $a1, $v1 # move to a1 (y) 
+    lw $t0, BOARD_WIDTH  # load board_width to calculate new x_coord
+    addi $t0, $t0, 1    # add 1 to board height 
+    add $a0, $a0, $t0  # x_coord = board_width + 1
+    lw $a2, BOARD_HEIGHT # load board_height for line_length
+    add $a2, $a2, 1  # add one to account for border being 2 bigger than the board
+    lw $a3, red # load in color
+    li $s7, 1 # set line type
+    jal draw_vertical_line
+    
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
 
 # Function that can draw a solid or dotted line, used to draw checkered board pattern and white border
-draw_horizontal_line:
 draw_horizontal_line:    
     # ARGUMENTS:
     # - $a0 starting x_coord
@@ -326,29 +379,17 @@ draw_horizontal_line:
     # RETURNS:
     # - Nothing
     
-    # push return address onto stack
-    addi $sp, $sp, -4 # make space in stack
-    sw $ra, ($sp) # store return on stack
-    
+    # store return address
+    move $t8, $ra
+    b draw_horizontal_line_loop
+
+draw_horizontal_line_loop:
     jal calc_offset_display # calculate display offset to draw the pixel
-    # ARGUMENTS
-    # - $a0 x_coordinate
-    # - $a1 y_coordinate
-    
-    # RETURNS:
-    # - $v0 calculated offset for writing to display
-    
     sw $a3 0($v0) # draw the pixel to display
-    
     add $a0, $a0, $s7  # calculate incremented x_coord
     sub $a2, $a2, $s7 # use $a2 to store line length left to draw
-    
-    bgt $a2, $zero, draw_horizontal_line # repeat until line is drawn
-    
-    lw $t9, ($sp) # load last return address to stack
-    addi $sp, $sp, 4 # deallocate space on stack
-    jr $t9 # return
-    
+    bgt $a2, $zero, draw_horizontal_line_loop # repeat until line is drawn
+    jr $t8 # return otherwise
     
 # Function that can draw a solid or dotted line, used to draw white border
 draw_vertical_line:
@@ -357,6 +398,19 @@ draw_vertical_line:
     # - $a1 starting y_coord
     # - $a2 line length
     # - $a3 color
+    # - $s7 line_type
     
     # RETURNS:
     # - Nothing
+    
+    # store return address
+    move $t9, $ra 
+    b draw_vertical_line_loop
+    
+draw_vertical_line_loop:
+    jal calc_offset_display # calculate display offset to draw the pixel
+    sw $a3 0($v0) # draw the pixel to display
+    add $a1, $a1, $s7  # calculate incremented y coordinate
+    sub $a2, $a2, $s7 # use $a2 to store line length left to draw
+    bgt $a2, $zero, draw_vertical_line_loop # repeat until line is drawn
+    jr $t9 # return otherwise
