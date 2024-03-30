@@ -4,7 +4,15 @@
 # - Display width in pixels:    256
 # - Display height in pixels:   256
 # - Base Address for Display:   0x10008000 ($gp)
+# coordinate system has top left corner as origin -> goes from 0 to 31 assuming default bitmap configuration
 ##############################################################################
+
+# GENERAL RULES OF THUMB
+# stack used for return pointers 
+# function arguments in a0-a3
+# return values in v0-v1
+# read values from constants in functions to avoid errors from other programs overriding values (read into t0-t9)
+# t9 sometimes used to store return address popped from stack
 
 ######################## Memory Model Configuration ########################
 # - Display address:            $t0 (reload when using)
@@ -12,8 +20,7 @@
 # - Current piece orientation:  $s0
 # - Current piece x:            $s1
 # - Current piece y:            $s2
-# - First return address:       $s7
-# - Second return address:      $s6
+# - Return address:             $t9 (where it's stored after popping from stack)
 # v0-v1 (return) a0-a3 (arg) t0-t9 s0-s7
 ##############################################################################
 
@@ -55,6 +62,7 @@ DISPLAY_HEIGHT:
 	dark_grey:     .word 0x007F7F7F  # checkered grid dark color
 	board_state:   .word 0:200       # used to store current pieces on the board (BOARD_WIDTH * BOARD_HEIGHT = 200)
 	                                 # each coordinate will store 0 if no piece is there or the name of the piece I, O, T, S, Z, J, L if it's the top left corner of the piece
+	                                 # initialized to value of 0
     
 ##############################################################################
 # Code
@@ -63,7 +71,6 @@ DISPLAY_HEIGHT:
 	.globl main
 
 main:
-    jal draw_border
 
 
 
@@ -78,7 +85,6 @@ game_loop:
     #5. Go back to 1
     b game_loop
 
-# Function that takes in x, y coords and returns offset for display
 
 
 # Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset for display
