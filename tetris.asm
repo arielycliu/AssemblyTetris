@@ -13,6 +13,8 @@
 # return values in v0-v1
 # read values from constants in functions to avoid errors from other programs overriding values (read into t0-t9)
 # t9 sometimes used to store return address popped from stack
+# current piece x and y is the x, y coord of the top left of the 4x4 grid tetris pieces are drawn from
+# the color of the dead piece is stored in the game field
 
 ######################## Memory Model Configuration ########################
 # - Display address:            $t0 (reload when using)
@@ -20,6 +22,7 @@
 # - Current piece orientation:  $s0
 # - Current piece x:            $s1
 # - Current piece y:            $s2
+# - Type of current piece:      $s3 (I is 1, O is 2, T is 3, etc for S, Z, J, L)
 # - Return address:             $t9 or $t8 (where it's stored when stack is inconvient)
 # - Line type argument:         $s7-s6 (extra argument since we don't have enough a0-a3 registers, stores 1 for solid and 2 for dotted lines)
 # s values are used when there are too many arguments and when we need to keep function values when calling a sub function
@@ -53,13 +56,13 @@ DISPLAY_HEIGHT:
 # Mutable Data
 ##############################################################################
     
-    cyan:          .word 0x0000FFFF  # I
-    yellow:        .word 0x00FFFF00  # O
-    purple:        .word 0x00800080  # T
-    green:         .word 0x0000FF00  # S
-    red:           .word 0x00FF0000  # Z
-    blue:          .word 0x000000FF  # J
-    orange:        .word 0x00FF7F00  # L
+    cyan:          .word 0x0000FFFF  # I - 1
+    yellow:        .word 0x00FFFF00  # O - 2
+    purple:        .word 0x00800080  # T - 3
+    green:         .word 0x0000FF00  # S - 4
+    red:           .word 0x00FF0000  # Z - 5
+    blue:          .word 0x000000FF  # J - 6
+    orange:        .word 0x00FF7F00  # L - 7
     white: 	       .word 0x00FFFFFF  # border color
     light_grey:    .word 0x00E0E0E0	 # checkered grid light color
 	dark_grey:     .word 0x007F7F7F  # checkered grid dark color
@@ -67,6 +70,28 @@ DISPLAY_HEIGHT:
 	                                 # each coordinate will store 0 if no piece is there or the name of the piece I, O, T, S, Z, J, L if it's the top left corner of the piece
 	                                 # initialized to value of 0
     
+    # TETRIS PIECES
+    # T piece
+    T0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00800080, 0x00000000, 0x00000000
+		.word 0x00800080, 0x00800080, 0x00800080, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+	
+	T1: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00800080, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00800080, 0x00800080, 0x00000000
+		.word 0x00000000, 0x00800080, 0x00000000, 0x00000000
+		
+	T2: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00800080, 0x00800080, 0x00800080, 0x00000000
+		.word 0x00000000, 0x00800080, 0x00000000, 0x00000000
+	
+	T3: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00800080, 0x00000000, 0x00000000
+		.word 0x00800080, 0x00800080, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00800080, 0x00000000, 0x00000000
+		
 ##############################################################################
 # Code
 ##############################################################################
@@ -82,16 +107,21 @@ main:
 
 
 
-# game_loop:
-	# # 1a. Check if key has been pressed
-    # # 1b. Check which key has been pressed
-    # # 2a. Check for collisions
-	# # 2b. Update locations (paddle, ball)
-	# # 3. Draw the screen
-	# # 4. Sleep
+game_loop:
+	# 1a. Check if key has been pressed
+    # 1b. Check which key has been pressed
+    # 2a. Check for collisions
+	# 2b. Update locations (paddle, ball)
+	# 3. Draw the screen
+	# 4. Sleep
 
-    # #5. Go back to 1
-    # b game_loop
+    #5. Go back to 1
+    b game_loop
+
+
+##############################################################################
+# Background of game field functions 
+##############################################################################
 
 # Function that take display stats and board stats to decide where the border starts and ends
 # Python equivalent:
@@ -477,3 +507,4 @@ draw_checkerboard_helper: # helper function that draws one row
     lw $ra, 0($sp) # pop value
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra
+    
