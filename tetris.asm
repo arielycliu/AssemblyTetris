@@ -21,7 +21,8 @@
 # - Current piece x:            $s1
 # - Current piece y:            $s2
 # - Return address:             $t9 or $t8 (where it's stored when stack is inconvient)
-# - Line type argument:         $s7 (extra argument since we don't have enough a0-a3 registers, stores 1 for solid and 2 for dotted lines)
+# - Line type argument:         $s7-s6 (extra argument since we don't have enough a0-a3 registers, stores 1 for solid and 2 for dotted lines)
+# s values are used when there are too many arguments and when we need to keep function values when calling a sub function
 # v0-v1 (return) a0-a3 (arg) t0-t9 s0-s7
 ##############################################################################
 
@@ -46,6 +47,7 @@ DISPLAY_WIDTH:
     .word 256
 DISPLAY_HEIGHT:
     .word 256
+
 
 ##############################################################################
 # Mutable Data
@@ -73,6 +75,7 @@ DISPLAY_HEIGHT:
 
 main:
     jal draw_border
+    jal draw_checkerboard
     
     li $v0, 10     # syscall code for exit
     syscall        # perform syscall to exit program
@@ -385,7 +388,6 @@ draw_horizontal_line:
     # store return address
     move $t8, $ra
     b draw_horizontal_line_loop
-
 draw_horizontal_line_loop:
     jal calc_offset_display # calculate display offset to draw the pixel
     sw $a3 0($v0) # draw the pixel to display
@@ -409,7 +411,6 @@ draw_vertical_line:
     # store return address
     move $t9, $ra 
     b draw_vertical_line_loop
-    
 draw_vertical_line_loop:
     jal calc_offset_display # calculate display offset to draw the pixel
     sw $a3 0($v0) # draw the pixel to display
@@ -417,3 +418,62 @@ draw_vertical_line_loop:
     sub $a2, $a2, $s7 # use $a2 to store line length left to draw
     bgt $a2, $zero, draw_vertical_line_loop # repeat until line is drawn
     jr $t9 # return otherwise
+    
+# Function that draws the checkerboard design
+draw_checkerboard:
+    # NO ARGS NO RETURN VALS    
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    lw $a3, light_grey # MAIN COLOR
+    lw $s6, dark_grey # SECONDARY COLOR
+    
+    jal center_board # returns coordinates of top left corner of board in v0, v1
+    move $s4, $v0 # x
+    move $s5, $v1 # y
+    b draw_checkerboard_helper
+    
+# Function draws one row of checkered squares, increment y, and loops
+draw_checkerboard_helper: # helper function that draws one row
+    # ARGUMENTS:
+    # - $s4 for x value
+    # - $s5 for y value
+    # - $s7 used for line type
+    
+    # Variables:
+    # - $t0 used for temp storage of the number 2 and the reading from high
+    # - $t1 used for temp storage of board height
+    
+    # Draw a solid light grey line
+    move $a0, $s4 # x
+    move $a1, $s5 # y
+    lw $a2, BOARD_WIDTH # line_length
+    lw $a3, light_grey # color
+    li $s7, 1 # line type    
+    jal draw_horizontal_line # DRAW solid line
+    
+    # On top we will draw alternating dark grey squares
+    move $a0, $s4 # x
+    move $a1, $s5 # y
+    li $t0, 2 # temp value to hold 2
+    div $a1, $t0  # divide y coord by 2 to get it's modulo which will alternate between 0 or 1
+    mfhi $t0 # we will use the remainder to stagger the rows horizontally
+    add $a0, $a0, $t0 # add the remainder to create stagger
+    lw $a2, BOARD_WIDTH # line_length
+    lw $a3, dark_grey # color is already set to a3
+    li $s7, 2 # set the line type to dotted    
+    jal draw_horizontal_line # DRAW dotted line
+    
+    addi $s5, $s5, 1  # increment y value
+    
+    # Determine if we have drawn enough rows to fill the grid
+    jal center_border
+    lw $t1, BOARD_HEIGHT # load board height
+    add $t1, $t1, $v1  # add center_border y value to board height
+    addi $t1, $t1, 1  # add 1 to stretch to end of board
+    blt $s5, $t1, draw_checkerboard_helper # repeat as long as y < board_height
+    
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
