@@ -232,6 +232,7 @@ main:
     jal draw_border
     jal draw_checkerboard
     jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
+    jal draw_current_piece
     
     li $v0, 10     # syscall code for exit
     syscall        # perform syscall to exit program
@@ -270,15 +271,12 @@ generate_new_piece:
     
     lw $t0, BOARD_WIDTH    
     srl $t0, $t0, 1 # shift right logical by 1 to divide by 2: find center of the board
-    add $t0, $t0, $v0 # add x coordinate of starting point of board to width of board
     addi $t0, $t0, -2 # move to the left by 2 since the width of the piece field is 4
-    
-    addi $v1, $v1, 1 # add one to y to avoid drawing on border
     
     # INIT PARAMETERS
     li $s0, 0 # current orientation (starts in the same position)
     move $s1, $t0 # store in x
-    move $s2, $v1 # store y (top of board)
+    li $s2, 0 # store y (top of board)
     
     # Return logic
     lw $ra, 0($sp) # pop value
@@ -296,12 +294,29 @@ draw_current_piece:
     addi $sp, $sp, -4 # allocate space
     sw $ra, 0($sp) # push
 
+    # Prep for loop    
+    # calculate offset based on current orientation
+    lw $t0, sizeof_piece_data  # 64 or piece offset (16 * 4)
+    # calculate how much to move the address pointer by
+    mul $t0, $t0, $s0  # $t0 = orientation * 64
+    # now move pointer by this offset
+    # e.g, pointer starts at T0, we can move the pointer to point to T1 instead if the orientation is 1
+    move $s4, $t0  # store the offset in the "future" address pointer - ARG for piece address
+    
+    li $s5, 0 # keeps track of pixels drawn in loop - ARG for pixel count
+    
+    move $a0, $s1 # set x argument
+    move $a1, $s2 # set y argument
+    jal calc_offset_board  # returns display address at $v0, does not impact $s4
+    move $s6, $v0 # store in s6 to avoid getting overwritten - ARG for display address
+
     # Branching logic
     # Loads the address the tetris piece in .data - $a0
     # Loads which color to use when drawing - $a1
-    # 64 or piece offset stores in $t0
     
-    lw $t0, sizeof_piece_data
+    li $v0, 1
+    move $a0, $s3
+    syscall # print piece type
     
     li $t0, 0
     beq $s3, $t0, load_I_piece
@@ -321,49 +336,169 @@ draw_current_piece:
     li $t0, 5
     beq $s3, $t0, load_J_piece
     
-    li $t0, 5
+    li $t0, 6
     beq $s3, $t0, load_L_piece
-    
-draw_current_piece_part2:
+
+# 7 functions for loading the address and the color
+# ARGUMENTS: $s0 for piece orientation
+# RETURNS: $s4 updated to reflect offset + base address of piece
+# Loads the address the tetris piece in .data (accounts for orientation) - $a0
+# Which color is encoded in the tetris piece
+load_I_piece:
+    la $t0, I0
+    add $s4, $s4, $t0 # add address to offset
+    b draw_current_piece_loop
+
+load_O_piece:
+    la $t0, O0
+    add $s4, $s4, $t0 # address + offset
+    b draw_current_piece_loop
+
+load_T_piece:
+    la $t0, T0
+    add $s4, $s4, $t0 # address + offset
+    b draw_current_piece_loop
+
+load_S_piece:
+    la $t0, S0
+    add $s4, $s4, $t0 # address + offset
+    b draw_current_piece_loop
+
+load_Z_piece:
+    la $t0, Z0
+    add $s4, $s4, $t0 # address + offset
+    b draw_current_piece_loop
+
+load_J_piece:
+    la $t0, J0
+    add $s4, $s4, $t0 # address + offset
+    b draw_current_piece_loop
+
+load_L_piece:
+    la $t0, L0
+    add $s4, $s4, $t0 # address + offset
+    b draw_current_piece_loop
+
+# Helper function for draw_current_piece_loop that handles the branching: to draw or not to draw the pixel
+# We want to print the pixel only when the value is not 0 (aka black)
+# By separating this out into a function, we can call it with jal and return to the same location
+draw_current_piece_pixel:
     # ARGUMENTS:
-    # - $a0 for starting address of piece data
-    # Return logic
+    # - Current address of piece:   $s4
+    # - Current address of display: $s6 (originally from calc_offset_board)
+    lw $t0, 0($s4)  # load color at piece data address to t0
+    beq $t0, $zero, draw_current_piece_pixel_exit  # if color is zero, exit the function early
+    sw $t0, 0($s6)  # draw the pixel
+    b draw_current_piece_pixel_exit # exit
+draw_current_piece_pixel_exit:
+    jr $ra
+# Function that draws one line of the tetris piece and loops until the whole piece is drawn
+draw_current_piece_loop:
+    # ARGUMENTS:
+    # - Current address of piece:   $s4
+    # - Rows drawn:                 $s5 (used to check end condition when we've drawn 64 pixels)
+    # - Current address of display: $s6 (originally from calc_offset_board)
+    
+	jal draw_current_piece_pixel
+	
+	add $s6, $s6, 4  # move display pointer by 1 pixel
+	add $s4, $s4, 4  # move piece pointer by 1 pixel
+	jal draw_current_piece_pixel
+	
+	add $s6, $s6, 4  # move display pointer by 1 pixel
+	add $s4, $s4, 4  # move piece pointer by 1 pixel
+	jal draw_current_piece_pixel
+	
+	add $s6, $s6, 4  # move display pointer by 1 pixel
+	add $s4, $s4, 4  # move piece pointer by 1 pixel
+	jal draw_current_piece_pixel
+	
+	add $s4, $s4, 4  # move piece pointer by 1 pixel
+	add $s5, $s5, 1 # drew 4 pixels so increase count of rows by 1
+	
+	# PREP for next row
+	move $a0, $s1 # set x argument
+    move $a1, $s2 # set y argument
+    add $a1, $a1, $s5 # add the row count to the y argument
+    jal calc_offset_board  # returns display address at $v0, does not impact $s4
+    move $s6, $v0 # store in s6 to avoid getting overwritten - ARG for display address
+	# we can leave the piece pointer alone as it will just continue to read the next value stored "chronologically"
+    
+    # if pixels drawn >= 4
+    li $t1, 4
+    blt $s5, $t1, draw_current_piece_loop
+    
+    # Otherwise, activate return logic
     lw $ra, 0($sp) # pop value
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra
 
-# 7 functions for loading the address and the color
-# ARGUMENTS: $s0 for piece orientation
-# RETURNS
-# Loads the address the tetris piece in .data (accounts for orientation) - $a0
-# Which color is encoded in the tetris piece
-load_I_piece:
-    la $a0, I0
-    b draw_current_piece_part2
 
-load_O_piece:
-    la $a0, O0
-    b draw_current_piece_part2
+##################################################################################################################################################################################
+# Basic drawing functions
+##################################################################################################################################################################################
 
-load_T_piece:
-    la $a0, T0
-    b draw_current_piece_part2
+# Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset ADDRESS for display (origin at lower left corner)
+# def calc_offset_board(x_coordinate, y_coordinate): # coordinate for WITHIN the game board
+    # global BOARD_WIDTH, BOARD_HEIGHT
+    # if x_coordinate >= BOARD_WIDTH: error return -1 
+    # if y_coordinate >= BOARD_HEIGHT: error return -1
+    
+    # x_board_offset, y_board_offset = center_board()
+    # new_x = x_coordinate + x_board_offset
+    # new_y = y_coordinate + y_board_offset
 
-load_S_piece:
-    la $a0, S0
-    b draw_current_piece_part2
-
-load_Z_piece:
-    la $a0, Z0
-    b draw_current_piece_part2
-
-load_J_piece:
-    la $a0, J0
-    b draw_current_piece_part2
-
-load_L_piece:
-    la $a0, L0
-    b draw_current_piece_part2
+    # offset_board = calc_offset_display(new_x, new_y)
+    # return offset_board
+calc_offset_board:
+    # ARGUMENTS (not passed in, loaded from constants):
+    # - $t0 BOARD_WIDTH
+    # - $t1 BOARD_HEIGHT
+    
+    # ACTUAL ARGUMENTS
+    # - $a0 x_coordinate in board
+    # - $a1 y_coordinate in board
+    
+    # RETURNS:
+    # - $v0 calculated offset for writing to display
+    
+    # push return address onto stack
+    addi $sp, $sp, -4 # make space in stack
+    sw $ra, 0($sp) # store return on stack
+    
+    
+    lw $t0, BOARD_WIDTH # load in global variables
+    lw $t1, BOARD_HEIGHT
+    
+    # if x_coordinate >= BOARD_WIDTH: error return -1 
+    bge $a0, $t0, calc_offset_board_ERROR
+    # if y_coordinate >= BOARD_HEIGHT: error return -1 
+    bge $a1, $t1, calc_offset_board_ERROR
+    
+    # call center_board to find top left corner of board
+    jal center_board    
+    # RETURNS:
+    # - $v0 x_coord
+    # - $v1 y_coord
+    
+    # find new x_coord relative to display instead of board
+    add $a0, $a0, $v0 # take x coord in board and add to top left corner of board in display coords
+    add $a1, $a1, $v1 # do the same for y
+    
+    # ARGUMENTS for calc_offset_display
+    # - $a0 x_coordinate
+    # - $a1 y_coordinate
+    jal calc_offset_display  # returns offset for writing to display in $v0
+    
+    lw $ra, 0($sp) # load last return address to stack
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return
+# Error function: returns -1 stored at $v0 if the new coordinate is invalid
+calc_offset_board_ERROR:
+    li $v0, -1
+    lw $ra, 0($sp) # load last return address to stack
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return
 
 ##################################################################################################################################################################################
 # Background of game field functions 
@@ -528,69 +663,6 @@ calc_offset_display:
     add $v0, $v0, $t0
     
     jr $ra
-    
-
-# Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset ADDRESS for display (origin at lower left corner)
-# def calc_offset_board(x_coordinate, y_coordinate): # coordinate for WITHIN the game board
-    # global BOARD_WIDTH, BOARD_HEIGHT
-    # if x_coordinate >= BOARD_WIDTH: error return -1 
-    # if y_coordinate >= BOARD_HEIGHT: error return -1
-    
-    # x_board_offset, y_board_offset = center_board()
-    # new_x = x_coordinate + x_board_offset
-    # new_y = y_coordinate + y_board_offset
-
-    # offset_board = calc_offset_display(new_x, new_y)
-    # return offset_board
-calc_offset_board:
-    # ARGUMENTS (not passed in, loaded from constants):
-    # - $t0 BOARD_WIDTH
-    # - $t1 BOARD_HEIGHT
-    
-    # ACTUAL ARGUMENTS
-    # - $a0 x_coordinate in board
-    # - $a1 y_coordinate in board
-    
-    # RETURNS:
-    # - $v0 calculated offset for writing to display
-    
-    # push return address onto stack
-    addi $sp, $sp, -4 # make space in stack
-    sw $ra, 0($sp) # store return on stack
-    
-    
-    lw $t0, BOARD_WIDTH # load in global variables
-    lw $t1, BOARD_HEIGHT
-    
-    # if x_coordinate >= BOARD_WIDTH: error return -1 
-    bge $a0, $t0, calc_offset_board_ERROR
-    # if y_coordinate >= BOARD_HEIGHT: error return -1 
-    bge $a1, $t1, calc_offset_board_ERROR
-    
-    # call center_board to find top left corner of board
-    jal center_board    
-    # RETURNS:
-    # - $v0 x_coord
-    # - $v1 y_coord
-    
-    # find new x_coord relative to display instead of board
-    add $a0, $a0, $v0 # take x coord in board and add to top left corner of board in display coords
-    add $a1, $a1, $v1 # do the same for y
-    
-    # ARGUMENTS for calc_offset_display
-    # - $a0 x_coordinate
-    # - $a1 y_coordinate
-    jal calc_offset_display  # returns offset for writing to display in $v0
-    
-    lw $ra, 0($sp) # load last return address to stack
-    addi $sp, $sp, 4 # deallocate space on stack
-    jr $ra # return
-# Error function: returns -1 stored at $v0 if the new coordinate is invalid
-calc_offset_board_ERROR:
-    li $v0, -1
-    lw $ra, 0($sp) # load last return address to stack
-    addi $sp, $sp, 4 # deallocate space on stack
-    jr $ra # return
 
 # Function that draws the white border around the game board
 draw_border:
