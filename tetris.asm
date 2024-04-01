@@ -230,11 +230,16 @@ DISPLAY_HEIGHT:
 	.globl main
 
 main:
+    
     jal draw_border
     jal draw_checkerboard
     jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
     jal draw_current_piece
+    
     jal store_dead_piece_in_board_state
+    
+    jal draw_checkerboard
+    jal draw_dead_pieces
     
     li $v0, 10     # syscall code for exit
     syscall        # perform syscall to exit program
@@ -254,9 +259,81 @@ game_loop:
 # Drawing dead pieces from board state
 ##################################################################################################################################################################################
 
+# Function that draw the dead pieces on top of the checkerboard 
 draw_dead_pieces:
+    # No arguments, no return values
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
     
+    li $a0, 0 # x
+    li $a1, 0 # y
+    jal calc_offset_board # RETURNS: $v0 calculated offset for writing to display
+    move $s6, $v0 # write to this address
+    
+    li $s5, 0 # row count
+    la $s4, board_state # read from this address
+    b draw_dead_pieces_loop # jump to loop
+    
+# Loop for the function that draws dead pieces that loops 20 times for each row
+draw_dead_pieces_loop:
+    # ARGUMENTS:
+    # - Current address of memory:  $s4 (place we read piece colors from) -> 0x10010048
+    # - Rows drawn:                 $s5 (used to check end condition)
+    # - Current address of display: $s6 (place we are writing the colors to) -> 0x1000832c
+    
+    jal draw_dead_pieces_draw_row_intro # one row
+    add $s5, $s5, 1 # increment row count by 1
+    
+    # calculate new display address for next row
+    move $a0, $s2  # x coord
+    add $a1, $s2, $s5   # new y = y + rows_drawn
+    jal calc_offset_board # calculate new display address
+    move $s6, $v0 # store new address
+    
+    lw $t1, BOARD_HEIGHT
+    blt $s5, $t1, draw_dead_pieces_loop  # if row_count >= board_height then return    
+    
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
 
+# Function that stores return pointer outside of loop 
+# Without this function, having move $t9, $v0
+# would cause $t9 to be overwritten with draw_current_dead_piece_pixel's $ra return address after draw_current_dead_piece_pixel is called
+draw_dead_pieces_draw_row_intro:
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    li $a0, 0 # start pixel count
+    j draw_dead_pieces_draw_row
+# Function that draws BOARD_WIDTH number of pixels to form ONE row
+draw_dead_pieces_draw_row:
+    # ARGUMENTS: $a0 pixel count
+    jal draw_current_dead_piece_pixel # draw a single pixel
+    add $a0, $a0, 1
+    
+    lw $t1, BOARD_WIDTH 
+    blt $a0, $t1, draw_dead_pieces_draw_row # if we have not drawn enough pixels to fit the width, then continue
+
+    # RETURN TO: where draw_dead_pieces_draw_row was called in draw_dead_pieces_loop
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
+# Function to draw a single pixel and handles logic for when color is 0 (increment counter and avoid drawing that pixel)
+draw_current_dead_piece_pixel:
+    # ARGUMENTS:
+    # - Current address of piece:   $s4
+    # - Current address of display: $s6 (originally from calc_offset_board)
+    lw $t0, 0($s4)  # load color at piece data address to t0
+    beq $t0, $zero, draw_current_dead_piece_pixel_exit  # if color is zero, exit the function early
+    sw $t0, 0($s6)  # draw the pixel
+    b draw_current_dead_piece_pixel_exit # exit
+draw_current_dead_piece_pixel_exit:
+    add $s6, $s6, 4  # move writing pointer by 1 pixel
+	add $s4, $s4, 4  # move reading pointer by 1 pixel
+    jr $ra
+    
 ##################################################################################################################################################################################
 # Storing dead pieces in board state
 ##################################################################################################################################################################################
@@ -283,10 +360,6 @@ store_dead_piece_in_board_state:
     # Branching logic
     # Loads the address the tetris piece in .data - $a0
     # Loads which color to use when drawing - $a1
-    
-    li $v0, 1
-    move $a0, $s3
-    syscall # print piece type
     
     li $t0, 0
     beq $s3, $t0, read_I_piece
@@ -372,6 +445,7 @@ store_dead_piece_in_board_state_loop:
 	add $s5, $s5, 1 # drew 4 pixels so increase count of rows by 1
 	
 	# PREP for next row
+	# Move down a row since we must preserve the shape of each object in the board state
 	add $s6, $s6, -12 # move memory pointer back to start of row
 	
 	li $t1, 4 # store 4 for multiplication
