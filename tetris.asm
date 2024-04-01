@@ -23,7 +23,6 @@
 # - Current piece orientation:  $s0
 # - Current piece x:            $s1
 # - Current piece y:            $s2
-# - Type of current piece:      $s3 (I is 1, O is 2, T is 3, etc for S, Z, J, L)
 # - Type of current piece:      $s3 (I is 0, O is 1, T is 2, etc for S, Z, J, L)
 # - Return address:             $t9 or $t8 (where it's stored when stack is inconvient)
 # - Line type argument:         $s7-s6 (extra argument since we don't have enough a0-a3 registers, stores 1 for solid and 2 for dotted lines)
@@ -237,8 +236,6 @@ main:
     li $v0, 10     # syscall code for exit
     syscall        # perform syscall to exit program
 
-
-
 game_loop:
 	# 1a. Check if key has been pressed
     # 1b. Check which key has been pressed
@@ -250,41 +247,127 @@ game_loop:
     #5. Go back to 1
     b game_loop
 
+# Function that creates a new piece's information - DOES not call draw_piece
+generate_new_piece:
+    # No arguments
+    # Sets the variables:
+    # - $s0, $s1, $s2
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
     
+    # Generate a random number between 0 and 6
+    li $v0, 42 # command for random number generation
+    li $a0, 0  # random number generator ID
+    li $a1, 7  # maximum value is exclusive
+    syscall # stores return value in $a0
+    
+    move $s3, $a0  # move to where we are storing the piece type
+    
+    jal center_border
+    # RETURNS:
+    # - $v0 x_coord
+    # - $v1 y_coord
+    
+    lw $t0, BOARD_WIDTH    
+    srl $t0, $t0, 1 # shift right logical by 1 to divide by 2: find center of the board
+    add $t0, $t0, $v0 # add x coordinate of starting point of board to width of board
+    addi $t0, $t0, -2 # move to the left by 2 since the width of the piece field is 4
+    
+    addi $v1, $v1, 1 # add one to y to avoid drawing on border
+    
+    # INIT PARAMETERS
+    li $s0, 0 # current orientation (starts in the same position)
+    move $s1, $t0 # store in x
+    move $s2, $v1 # store y (top of board)
+    
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
+    
+# Function that draws the current piece based on s0-s3 variables
 draw_current_piece:
+    # ARGUMENTS:
     # - Current piece orientation:  $s0
-# - Current piece x:            $s1
-# - Current piece y:            $s2
-# - Type of current piece:      $s3 
+    # - Current piece x:            $s1
+    # - Current piece y:            $s2
+    # - Type of current piece:      $s3 
+    
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
 
+    # Branching logic
+    # Loads the address the tetris piece in .data - $a0
+    # Loads which color to use when drawing - $a1
+    # 64 or piece offset stores in $t0
+    
+    lw $t0, sizeof_piece_data
+    
     li $t0, 0
-    beq $s3, $t0, 
+    beq $s3, $t0, load_I_piece
+    
+    li $t0, 1
+    beq $s3, $t0, load_O_piece
+    
+    li $t0, 2
+    beq $s3, $t0, load_T_piece
+    
+    li $t0, 3
+    beq $s3, $t0, load_S_piece
+    
+    li $t0, 4
+    beq $s3, $t0, load_Z_piece
+    
+    li $t0, 5
+    beq $s3, $t0, load_J_piece
+    
+    li $t0, 5
+    beq $s3, $t0, load_L_piece
+    
+draw_current_piece_part2:
+    # ARGUMENTS:
+    # - $a0 for starting address of piece data
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
 
-    cyan:          .word 0x0000FFFF  # I - 0
-    yellow:        .word 0x00FFFF00  # O - 1
-    purple:        .word 0x00800080  # T - 2
-    green:         .word 0x0000FF00  # S - 3
-    red:           .word 0x00FF0000  # Z - 4
-    blue:          .word 0x000000FF  # J - 5
-    orange:        .word 0x00FF7F00  # L - 6
-
+# 7 functions for loading the address and the color
+# ARGUMENTS: $s0 for piece orientation
+# RETURNS
+# Loads the address the tetris piece in .data (accounts for orientation) - $a0
+# Which color is encoded in the tetris piece
 load_I_piece:
+    la $a0, I0
+    b draw_current_piece_part2
 
 load_O_piece:
+    la $a0, O0
+    b draw_current_piece_part2
 
 load_T_piece:
+    la $a0, T0
+    b draw_current_piece_part2
 
 load_S_piece:
+    la $a0, S0
+    b draw_current_piece_part2
 
 load_Z_piece:
+    la $a0, Z0
+    b draw_current_piece_part2
 
 load_J_piece:
+    la $a0, J0
+    b draw_current_piece_part2
 
 load_L_piece:
+    la $a0, L0
+    b draw_current_piece_part2
 
-##############################################################################
+##################################################################################################################################################################################
 # Background of game field functions 
-##############################################################################
+##################################################################################################################################################################################
 
 # Function that take display stats and board stats to decide where the border starts and ends
 # Python equivalent:
