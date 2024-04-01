@@ -248,6 +248,10 @@ game_loop:
     #5. Go back to 1
     b game_loop
 
+##################################################################################################################################################################################
+# Generating and drawing "current" pieces (aka pieces in play)
+##################################################################################################################################################################################
+
 # Function that creates a new piece's information - DOES not call draw_piece
 generate_new_piece:
     # No arguments
@@ -435,73 +439,7 @@ draw_current_piece_loop:
 
 
 ##################################################################################################################################################################################
-# Basic drawing functions
-##################################################################################################################################################################################
-
-# Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset ADDRESS for display (origin at lower left corner)
-# def calc_offset_board(x_coordinate, y_coordinate): # coordinate for WITHIN the game board
-    # global BOARD_WIDTH, BOARD_HEIGHT
-    # if x_coordinate >= BOARD_WIDTH: error return -1 
-    # if y_coordinate >= BOARD_HEIGHT: error return -1
-    
-    # x_board_offset, y_board_offset = center_board()
-    # new_x = x_coordinate + x_board_offset
-    # new_y = y_coordinate + y_board_offset
-
-    # offset_board = calc_offset_display(new_x, new_y)
-    # return offset_board
-calc_offset_board:
-    # ARGUMENTS (not passed in, loaded from constants):
-    # - $t0 BOARD_WIDTH
-    # - $t1 BOARD_HEIGHT
-    
-    # ACTUAL ARGUMENTS
-    # - $a0 x_coordinate in board
-    # - $a1 y_coordinate in board
-    
-    # RETURNS:
-    # - $v0 calculated offset for writing to display
-    
-    # push return address onto stack
-    addi $sp, $sp, -4 # make space in stack
-    sw $ra, 0($sp) # store return on stack
-    
-    
-    lw $t0, BOARD_WIDTH # load in global variables
-    lw $t1, BOARD_HEIGHT
-    
-    # if x_coordinate >= BOARD_WIDTH: error return -1 
-    bge $a0, $t0, calc_offset_board_ERROR
-    # if y_coordinate >= BOARD_HEIGHT: error return -1 
-    bge $a1, $t1, calc_offset_board_ERROR
-    
-    # call center_board to find top left corner of board
-    jal center_board    
-    # RETURNS:
-    # - $v0 x_coord
-    # - $v1 y_coord
-    
-    # find new x_coord relative to display instead of board
-    add $a0, $a0, $v0 # take x coord in board and add to top left corner of board in display coords
-    add $a1, $a1, $v1 # do the same for y
-    
-    # ARGUMENTS for calc_offset_display
-    # - $a0 x_coordinate
-    # - $a1 y_coordinate
-    jal calc_offset_display  # returns offset for writing to display in $v0
-    
-    lw $ra, 0($sp) # load last return address to stack
-    addi $sp, $sp, 4 # deallocate space on stack
-    jr $ra # return
-# Error function: returns -1 stored at $v0 if the new coordinate is invalid
-calc_offset_board_ERROR:
-    li $v0, -1
-    lw $ra, 0($sp) # load last return address to stack
-    addi $sp, $sp, 4 # deallocate space on stack
-    jr $ra # return
-
-##################################################################################################################################################################################
-# Background of game field functions 
+# Basic drawing helper functions (perform calculations)
 ##################################################################################################################################################################################
 
 # Function that take display stats and board stats to decide where the border starts and ends
@@ -663,6 +601,72 @@ calc_offset_display:
     add $v0, $v0, $t0
     
     jr $ra
+    
+# Function that takes in x, y coords for WITHIN the white border (inside the game field) and returns offset ADDRESS for display (origin at lower left corner)
+# def calc_offset_board(x_coordinate, y_coordinate): # coordinate for WITHIN the game board
+    # global BOARD_WIDTH, BOARD_HEIGHT
+    # if x_coordinate >= BOARD_WIDTH: error return -1 
+    # if y_coordinate >= BOARD_HEIGHT: error return -1
+    
+    # x_board_offset, y_board_offset = center_board()
+    # new_x = x_coordinate + x_board_offset
+    # new_y = y_coordinate + y_board_offset
+
+    # offset_board = calc_offset_display(new_x, new_y)
+    # return offset_board
+calc_offset_board:
+    # ARGUMENTS (not passed in, loaded from constants):
+    # - $t0 BOARD_WIDTH
+    # - $t1 BOARD_HEIGHT
+    
+    # ACTUAL ARGUMENTS
+    # - $a0 x_coordinate in board
+    # - $a1 y_coordinate in board
+    
+    # RETURNS:
+    # - $v0 calculated offset for writing to display
+    
+    # push return address onto stack
+    addi $sp, $sp, -4 # make space in stack
+    sw $ra, 0($sp) # store return on stack
+    
+    
+    lw $t0, BOARD_WIDTH # load in global variables
+    lw $t1, BOARD_HEIGHT
+    
+    # if x_coordinate >= BOARD_WIDTH: error return -1 
+    bge $a0, $t0, calc_offset_board_ERROR
+    # if y_coordinate >= BOARD_HEIGHT: error return -1 
+    bge $a1, $t1, calc_offset_board_ERROR
+    
+    # call center_board to find top left corner of board
+    jal center_board    
+    # RETURNS:
+    # - $v0 x_coord
+    # - $v1 y_coord
+    
+    # find new x_coord relative to display instead of board
+    add $a0, $a0, $v0 # take x coord in board and add to top left corner of board in display coords
+    add $a1, $a1, $v1 # do the same for y
+    
+    # ARGUMENTS for calc_offset_display
+    # - $a0 x_coordinate
+    # - $a1 y_coordinate
+    jal calc_offset_display  # returns offset for writing to display in $v0
+    
+    lw $ra, 0($sp) # load last return address to stack
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return
+# Error function: returns -1 stored at $v0 if the new coordinate is invalid
+calc_offset_board_ERROR:
+    li $v0, -1
+    lw $ra, 0($sp) # load last return address to stack
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return
+
+##################################################################################################################################################################################
+# Background of game field functions 
+##################################################################################################################################################################################
 
 # Function that draws the white border around the game board
 draw_border:
