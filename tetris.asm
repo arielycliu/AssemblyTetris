@@ -234,6 +234,7 @@ main:
     jal draw_checkerboard
     jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
     jal draw_current_piece
+    jal store_dead_piece_in_board_state
     
     li $v0, 10     # syscall code for exit
     syscall        # perform syscall to exit program
@@ -250,9 +251,142 @@ game_loop:
     b game_loop
 
 ##################################################################################################################################################################################
+# Drawing dead pieces from board state
+##################################################################################################################################################################################
+
+draw_dead_pieces:
+    
+
+##################################################################################################################################################################################
 # Storing dead pieces in board state
 ##################################################################################################################################################################################
 
+# Function that stores the colors of the dead piece in the correct pixels of the board state
+# that way we can specifically draw the colors of the dead pieces over the checkered background
+store_dead_piece_in_board_state:
+    # ARGUMENTS
+    # - $s0 current piece orientation
+    # - $s1 current piece x 
+    # - $s2 current piece y
+    # - $s3 current piece type
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    # Prep for loop function to be called later
+    lw $t0, sizeof_piece_data  # 64 or piece offset (16 * 4)
+    mul $t0, $t0, $s0  # calculate how much to move the address pointer by: $t0 = orientation * 64
+    move $s4, $t0  # store the offset in the "future" address pointer - ARG for piece address
+    li $s5, 0 # keeps track of pixels drawn in loop - ARG for row count
+    jal calc_offset_board_state  # returns address to write to board_state in $v0
+    move $s6, $v0 # store in s6 - ARG for writing address
+
+    # Branching logic
+    # Loads the address the tetris piece in .data - $a0
+    # Loads which color to use when drawing - $a1
+    
+    li $v0, 1
+    move $a0, $s3
+    syscall # print piece type
+    
+    li $t0, 0
+    beq $s3, $t0, read_I_piece
+    
+    li $t0, 1
+    beq $s3, $t0, read_O_piece
+    
+    li $t0, 2
+    beq $s3, $t0, read_T_piece
+    
+    li $t0, 3
+    beq $s3, $t0, read_S_piece
+    
+    li $t0, 4
+    beq $s3, $t0, read_Z_piece
+    
+    li $t0, 5
+    beq $s3, $t0, read_J_piece
+    
+    li $t0, 6
+    beq $s3, $t0, read_L_piece 
+    
+read_I_piece:
+    la $t0, I0  # load piece address
+    add $s4, $s4, $t0 # add address to orientation offset
+    b store_dead_piece_in_board_state_loop
+
+read_O_piece:
+    la $t0, O0  # load piece address
+    add $s4, $s4, $t0 # add address to orientation offset
+    b store_dead_piece_in_board_state_loop
+
+read_T_piece:
+    la $t0, T0  # load piece address
+    add $s4, $s4, $t0 # add address to orientation offset
+    b store_dead_piece_in_board_state_loop
+
+read_S_piece:
+    la $t0, S0  # load piece address
+    add $s4, $s4, $t0 # add address to orientation offset
+    b store_dead_piece_in_board_state_loop
+
+read_Z_piece:
+    la $t0, Z0  # load piece address
+    add $s4, $s4, $t0 # add address to orientation offset
+    b store_dead_piece_in_board_state_loop
+
+read_J_piece:
+    la $t0, J0  # load piece address
+    add $s4, $s4, $t0 # add address to orientation offset
+    b store_dead_piece_in_board_state_loop
+
+read_L_piece:
+    la $t0, L0  # load piece address
+    add $s4, $s4, $t0 # add address to orientation offset
+    b store_dead_piece_in_board_state_loop
+    
+store_dead_piece_in_board_state_loop:
+    # ARGUMENTS:
+    # - Current address of piece:   $s4 (place we read piece colors from)
+    # - Rows drawn:                 $s5 (used to check end condition)
+    # - Current address of memory:  $s6 (place we are writing the colors to)
+
+	lw $t0, 0($s4)  # load color at piece data address to t0
+    sw $t0, 0($s6)  # draw the pixel, it could draw 0
+	
+	add $s6, $s6, 4  # move memory pointer by 1 pixel
+	add $s4, $s4, 4  # move piece pointer by 1 pixel
+	lw $t0, 0($s4)  # load color at piece data address to t0
+    sw $t0, 0($s6)  # draw the pixel
+	
+	add $s6, $s6, 4  # move memory pointer by 1 pixel
+	add $s4, $s4, 4  # move piece pointer by 1 pixel
+	lw $t0, 0($s4)  # load color at piece data address to t0
+    sw $t0, 0($s6)  # draw the pixel
+	
+	add $s6, $s6, 4  # move memory pointer by 1 pixel
+	add $s4, $s4, 4  # move piece pointer by 1 pixel
+	lw $t0, 0($s4)  # load color at piece data address to t0
+    sw $t0, 0($s6)  # draw the pixel
+	
+	add $s4, $s4, 4  # move piece pointer by 1 pixel
+	add $s5, $s5, 1 # drew 4 pixels so increase count of rows by 1
+	
+	# PREP for next row
+	add $s6, $s6, -12 # move memory pointer back to start of row
+	
+	li $t1, 4 # store 4 for multiplication
+	lw $t2, BOARD_WIDTH
+	mult $t1, $t1, $t2 # board_width * 4
+	add $s6, $s6, $t1 # move memory pointer by 1 row
+    
+    # if pixels drawn >= 4
+    lw $t1, numofrows_piece_data
+    blt $s5, $t1, store_dead_piece_in_board_state_loop
+    
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
 
 # Function that take in x, y coord for a piece on the board and returns the address to start storing in the game_board
 # def calc_offset_board_state(x, y):
@@ -337,11 +471,11 @@ draw_current_piece:
     lw $t0, sizeof_piece_data  # 64 or piece offset (16 * 4)
     # calculate how much to move the address pointer by
     mul $t0, $t0, $s0  # $t0 = orientation * 64
-    # now move pointer by this offset
+    # we will move pointer by this offset once we load which address to read from
     # e.g, pointer starts at T0, we can move the pointer to point to T1 instead if the orientation is 1
     move $s4, $t0  # store the offset in the "future" address pointer - ARG for piece address
     
-    li $s5, 0 # keeps track of pixels drawn in loop - ARG for pixel count
+    li $s5, 0 # keeps track of pixels drawn in loop - ARG for row count
     
     move $a0, $s1 # set x argument
     move $a1, $s2 # set y argument
@@ -349,8 +483,7 @@ draw_current_piece:
     move $s6, $v0 # store in s6 to avoid getting overwritten - ARG for display address
 
     # Branching logic
-    # Loads the address the tetris piece in .data - $a0
-    # Loads which color to use when drawing - $a1
+    # Loads the address of the tetris piece in .data - $s4
     
     li $v0, 1
     move $a0, $s3
