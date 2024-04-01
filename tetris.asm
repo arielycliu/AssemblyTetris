@@ -118,6 +118,37 @@ game_loop:
     #5. Go back to 1
     b game_loop
 
+    
+draw_current_piece:
+    # - Current piece orientation:  $s0
+# - Current piece x:            $s1
+# - Current piece y:            $s2
+# - Type of current piece:      $s3 
+
+    li $t0, 0
+    beq $s3, $t0, 
+
+    cyan:          .word 0x0000FFFF  # I - 0
+    yellow:        .word 0x00FFFF00  # O - 1
+    purple:        .word 0x00800080  # T - 2
+    green:         .word 0x0000FF00  # S - 3
+    red:           .word 0x00FF0000  # Z - 4
+    blue:          .word 0x000000FF  # J - 5
+    orange:        .word 0x00FF7F00  # L - 6
+
+load_I_piece:
+
+load_O_piece:
+
+load_T_piece:
+
+load_S_piece:
+
+load_Z_piece:
+
+load_J_piece:
+
+load_L_piece:
 
 ##############################################################################
 # Background of game field functions 
