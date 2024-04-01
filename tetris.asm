@@ -58,10 +58,10 @@ DISPLAY_HEIGHT:
 ##############################################################################
     
     cyan:          .word 0x0000FFFF  # I - 0
-    yellow:        .word 0x00FFFF00  # O - 1
+    yellow:        .word 0x00FFFF00  # O - 1 
     purple:        .word 0x00800080  # T - 2
-    green:         .word 0x0000FF00  # S - 3
-    red:           .word 0x00FF0000  # Z - 4
+    green:         .word 0x0000FF00  # S - 3 
+    red:           .word 0x00FF0000  # Z - 4 
     blue:          .word 0x000000FF  # J - 5
     orange:        .word 0x00FF7F00  # L - 6
     white: 	       .word 0x00FFFFFF  # border color
@@ -74,6 +74,7 @@ DISPLAY_HEIGHT:
     # TETRIS PIECES
     # Note that moving the address pointer by 64 (which is 16 * sizeof(byte)) we can move to the next position
     sizeof_piece_data: .word 64
+    numofrows_piece_data: .word 4
     
     # I piece
     I0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
@@ -247,6 +248,39 @@ game_loop:
 
     #5. Go back to 1
     b game_loop
+
+##################################################################################################################################################################################
+# Storing dead pieces in board state
+##################################################################################################################################################################################
+
+
+# Function that take in x, y coord for a piece on the board and returns the address to start storing in the game_board
+# def calc_offset_board_state(x, y):
+    # global BOARD_WIDTH, BOARD_HEIGHT
+    # offset = y * BOARD_WIDTH * 4  # vertical offset
+    # offset += x * 4  # horizontal offset
+    # return offset
+calc_offset_board_state:
+    # ARGUMENTS
+    # - $s1 current piece x 
+    # - $s2 current piece y
+    
+    # RETURNS
+    # - $v0 offset board state address
+    
+    # use $t0 to store offset
+    lw $t0, BOARD_WIDTH
+    mult $t0, $t0, $s2  # board_width * y
+    li $t1, 4
+    mult $t0, $t0, $t1  # board_width * y * 4 -> vertical offset
+    
+    mult $t1, $t1, $s1 # t1 = x * 4 -> horizontal offset
+    add $t0, $t0, $t1 # add vertical and horizontal offset together
+    
+    la $t2, board_state  # calculate address + offset
+    add $v0, $t2, $t0  # return the address and the offset added together
+    
+    jr $ra
 
 ##################################################################################################################################################################################
 # Generating and drawing "current" pieces (aka pieces in play)
@@ -429,7 +463,7 @@ draw_current_piece_loop:
 	# we can leave the piece pointer alone as it will just continue to read the next value stored "chronologically"
     
     # if pixels drawn >= 4
-    li $t1, 4
+    lw $t1, numofrows_piece_data
     blt $s5, $t1, draw_current_piece_loop
     
     # Otherwise, activate return logic
