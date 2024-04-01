@@ -236,24 +236,93 @@ main:
     jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
     jal draw_current_piece
     
-    jal store_dead_piece_in_board_state
+    # jal store_dead_piece_in_board_state # stores current piece in board
     
-    jal draw_checkerboard
-    jal draw_dead_pieces
+    b game_loop
     
-    li $v0, 10     # syscall code for exit
-    syscall        # perform syscall to exit program
+    # li $v0, 10     # syscall code for exit
+    # syscall        # perform syscall to exit program
 
 game_loop:
 	# 1a. Check if key has been pressed
     # 1b. Check which key has been pressed
+    jal check_for_key_press
+    
     # 2a. Check for collisions
 	# 2b. Update locations (paddle, ball)
 	# 3. Draw the screen
+	# jal draw_checkerboard only draw on update
+	# jal draw_dead_pieces
+	jal draw_current_piece
+	
+	
 	# 4. Sleep
-
+    li $v0, 32
+    li $a0, 3000  # sleep for 100 milliseconds
     #5. Go back to 1
     b game_loop
+
+##################################################################################################################################################################################
+# Keyboard sensing logic
+##################################################################################################################################################################################
+
+# Function that checks if a key has been pressed, if yes, then calls keyboard_input to handle it
+check_for_key_press:    
+    lw $t0, ADDR_KBRD
+    lw $t1, 0($t0) # Load first word from keyboard
+    beq $t1, 1, keyboard_input # If the first word 1, a key has been pressed
+    jr $ra # otherwise return
+
+# Function that calls different functions depending on the key pressed
+keyboard_input:
+    # ra should be unchanged from check_for_key_press
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    lw $t1, 4($t0) # Load second word from keyboard
+    beq $t1, 0x71, quit     # quit if key q is pressed
+    beq $t1, 119, w_key     # w
+    beq $t1, 97, a_key      # a
+    beq $t1, 115, s_key     # s
+    beq $t1, 100, d_key     # d
+    
+    j keyboard_input_exit
+    
+# Code to exit to game_loop
+keyboard_input_exit:
+     # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return to where check_for_key_press was called in game_loop
+
+# Quits the game
+quit:
+	li $v0, 10
+	syscall
+	
+w_key:
+    # change current piece orientation
+    add $s0, $s0, 1 # add 1 to current position
+    li $t0, 4
+    div $s0, $t0  # find newpos % 4 so that the position changes wrap around
+    mfhi $s0   # store this remainder as the new position
+    jal draw_checkerboard
+    j keyboard_input_exit
+
+a_key:
+    addi $s1, $s1, -1
+    jal draw_checkerboard
+    j keyboard_input_exit
+
+s_key:
+    addi $s2, $s2, 1
+    jal draw_checkerboard
+    j keyboard_input_exit
+
+d_key:
+    addi $s1, $s1, 1
+    jal draw_checkerboard
+    j keyboard_input_exit
 
 ##################################################################################################################################################################################
 # Drawing dead pieces from board state
@@ -559,9 +628,9 @@ draw_current_piece:
     # Branching logic
     # Loads the address of the tetris piece in .data - $s4
     
-    li $v0, 1
-    move $a0, $s3
-    syscall # print piece type
+    # li $v0, 1
+    # move $a0, $s3
+    # syscall # print piece type
     
     li $t0, 0
     beq $s3, $t0, load_I_piece
