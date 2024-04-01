@@ -8,7 +8,8 @@
 ##############################################################################
 
 # GENERAL RULES OF THUMB
-# stack used for return pointers 
+# stack used for return pointers if function calls another function
+# ra used for return pointers if function does not call any other function
 # function arguments in a0-a3
 # return values in v0-v1
 # read values from constants in functions to avoid errors from other programs overriding values (read into t0-t9)
@@ -23,6 +24,7 @@
 # - Current piece x:            $s1
 # - Current piece y:            $s2
 # - Type of current piece:      $s3 (I is 1, O is 2, T is 3, etc for S, Z, J, L)
+# - Type of current piece:      $s3 (I is 0, O is 1, T is 2, etc for S, Z, J, L)
 # - Return address:             $t9 or $t8 (where it's stored when stack is inconvient)
 # - Line type argument:         $s7-s6 (extra argument since we don't have enough a0-a3 registers, stores 1 for solid and 2 for dotted lines)
 # s values are used when there are too many arguments and when we need to keep function values when calling a sub function
@@ -56,13 +58,13 @@ DISPLAY_HEIGHT:
 # Mutable Data
 ##############################################################################
     
-    cyan:          .word 0x0000FFFF  # I - 1
-    yellow:        .word 0x00FFFF00  # O - 2
-    purple:        .word 0x00800080  # T - 3
-    green:         .word 0x0000FF00  # S - 4
-    red:           .word 0x00FF0000  # Z - 5
-    blue:          .word 0x000000FF  # J - 6
-    orange:        .word 0x00FF7F00  # L - 7
+    cyan:          .word 0x0000FFFF  # I - 0
+    yellow:        .word 0x00FFFF00  # O - 1
+    purple:        .word 0x00800080  # T - 2
+    green:         .word 0x0000FF00  # S - 3
+    red:           .word 0x00FF0000  # Z - 4
+    blue:          .word 0x000000FF  # J - 5
+    orange:        .word 0x00FF7F00  # L - 6
     white: 	       .word 0x00FFFFFF  # border color
     light_grey:    .word 0x00E0E0E0	 # checkered grid light color
 	dark_grey:     .word 0x007F7F7F  # checkered grid dark color
@@ -71,6 +73,51 @@ DISPLAY_HEIGHT:
 	                                 # initialized to value of 0
     
     # TETRIS PIECES
+    # Note that moving the address pointer by 64 (which is 16 * sizeof(byte)) we can move to the next position
+    sizeof_piece_data: .word 64
+    
+    # I piece
+    I0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x0000FFFF, 0x0000FFFF, 0x0000FFFF, 0x0000FFFF
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+	
+	I1: .word 0x00000000, 0x00000000, 0x0000FFFF, 0x00000000
+		.word 0x00000000, 0x00000000, 0x0000FFFF, 0x00000000
+		.word 0x00000000, 0x00000000, 0x0000FFFF, 0x00000000
+		.word 0x00000000, 0x00000000, 0x0000FFFF, 0x00000000
+	
+	I2: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x0000FFFF, 0x0000FFFF, 0x0000FFFF, 0x0000FFFF
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		
+	I3: .word 0x00000000, 0x0000FFFF, 0x00000000, 0x00000000
+		.word 0x00000000, 0x0000FFFF, 0x00000000, 0x00000000
+		.word 0x00000000, 0x0000FFFF, 0x00000000, 0x00000000
+		.word 0x00000000, 0x0000FFFF, 0x00000000, 0x00000000
+	
+	# O piece
+	O0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FFFF00, 0x00FFFF00, 0x00000000
+		.word 0x00000000, 0x00FFFF00, 0x00FFFF00, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+	
+	O1: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FFFF00, 0x00FFFF00, 0x00000000
+		.word 0x00000000, 0x00FFFF00, 0x00FFFF00, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+    
+    O2: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FFFF00, 0x00FFFF00, 0x00000000
+		.word 0x00000000, 0x00FFFF00, 0x00FFFF00, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		
+	O3: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FFFF00, 0x00FFFF00, 0x00000000
+		.word 0x00000000, 0x00FFFF00, 0x00FFFF00, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+    
     # T piece
     T0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
 		.word 0x00000000, 0x00800080, 0x00000000, 0x00000000
@@ -92,6 +139,90 @@ DISPLAY_HEIGHT:
 		.word 0x00800080, 0x00800080, 0x00000000, 0x00000000
 		.word 0x00000000, 0x00800080, 0x00000000, 0x00000000
 		
+	# S piece
+	S0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x0000FF00, 0x0000FF00, 0x00000000
+		.word 0x0000FF00, 0x0000FF00, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+	
+	S1: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x0000FF00, 0x00000000, 0x00000000
+		.word 0x00000000, 0x0000FF00, 0x0000FF00, 0x00000000
+		.word 0x00000000, 0x00000000, 0x0000FF00, 0x00000000
+    
+    S2: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x0000FF00, 0x0000FF00, 0x00000000
+		.word 0x0000FF00, 0x0000FF00, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		
+	S3: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x0000FF00, 0x00000000, 0x00000000, 0x00000000
+		.word 0x0000FF00, 0x0000FF00, 0x00000000, 0x00000000
+		.word 0x00000000, 0x0000FF00, 0x00000000, 0x00000000
+		
+	# Z piece
+	Z0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00FF0000, 0x00FF0000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FF0000, 0x00FF0000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+	
+	Z1: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00FF0000, 0x00000000
+		.word 0x00000000, 0x00FF0000, 0x00FF0000, 0x00000000
+		.word 0x00000000, 0x00FF0000, 0x00000000, 0x00000000
+    
+    Z2: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00FF0000, 0x00FF0000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FF0000, 0x00FF0000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		
+	Z3: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FF0000, 0x00000000, 0x00000000
+		.word 0x00FF0000, 0x00FF0000, 0x00000000, 0x00000000
+		.word 0x00FF0000, 0x00000000, 0x00000000, 0x00000000
+		
+	# J piece
+	J0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x000000FF, 0x000000FF, 0x000000FF, 0x00000000
+		.word 0x00000000, 0x00000000, 0x000000FF, 0x00000000
+	
+	J1: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x000000FF, 0x00000000, 0x00000000
+		.word 0x00000000, 0x000000FF, 0x00000000, 0x00000000
+		.word 0x000000FF, 0x000000FF, 0x00000000, 0x00000000
+    
+    J2: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x000000FF, 0x00000000, 0x00000000, 0x00000000
+		.word 0x000000FF, 0x000000FF, 0x000000FF, 0x00000000
+		
+	J3: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x000000FF, 0x000000FF, 0x00000000
+		.word 0x00000000, 0x000000FF, 0x00000000, 0x00000000
+		.word 0x00000000, 0x000000FF, 0x00000000, 0x00000000
+		
+	# L piece
+	L0: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00FF7F00, 0x00FF7F00, 0x00FF7F00, 0x00000000
+		.word 0x00FF7F00, 0x00000000, 0x00000000, 0x00000000
+	
+	L1: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00FF7F00, 0x00FF7F00, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
+    
+    L2: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00000000, 0x00FF7F00, 0x00000000
+		.word 0x00FF7F00, 0x00FF7F00, 0x00FF7F00, 0x00000000
+		
+	L3: .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
+		.word 0x00000000, 0x00FF7F00, 0x00FF7F00, 0x00000000
+		
 ##############################################################################
 # Code
 ##############################################################################
@@ -101,6 +232,7 @@ DISPLAY_HEIGHT:
 main:
     jal draw_border
     jal draw_checkerboard
+    jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
     
     li $v0, 10     # syscall code for exit
     syscall        # perform syscall to exit program
