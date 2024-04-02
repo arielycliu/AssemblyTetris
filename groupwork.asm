@@ -18,12 +18,13 @@
 	light_grey: 	.word 0x00E0E0E0	# Light grey color
 	dark_grey: 	.word 0x00C0C0C0	# Dark grey color
 	black: 		.word 0x00000000	# Black color
+	white:      .word 0x00FFFFFF
     
     
 	# Constants
 	dspl_wdth_unit:	.word 32       		# Unit display width
 	dspl_hght_unit:	.word 32       		# Unit display height
-	field_wdth:	.word 30		# Game field width
+	field_wdth:	.word 10		# Game field width
 	field_hght:	.word 31		# Game field height
 	tmino_ort_off:	.word 64		# Tetromino orientation offset (64 bytes)
 	tmino_blk_wdth:	.word 4			# Tetromino block width
@@ -35,7 +36,7 @@
 	ADDR_KBRD:	.word 0xffff0000
 	
 	# Game field
-	game_field:	.word 0:930		# 930 is 30*31, full size of the game field, initialized to 0
+	game_field:	.word 0:200		# 930 is 30*31, full size of the game field, initialized to 0
 	
 	# Tetrominoes
 	# I piece
@@ -206,6 +207,9 @@ main:
 	jal draw_walls			# draw the walls
 	jal init_field			# initialize the game field	
 	jal draw_field			# draw the game field
+	
+	li $v0, 10
+	syscall
 	
 	# Generate a random number between 0 and 6
     li $v0, 42 # command for random number generation
@@ -600,6 +604,8 @@ draw_field:
 	lw $t0, ADDR_DSPL	# load display base address
 	la $t9, game_field	# load game field address
 	
+	addi $t0, $t0, 40
+	
 	lw $t1, field_wdth	# load game field width
 	lw $t2, field_hght	# load game field height
 	li $t3, 0		# initialize height counter
@@ -613,7 +619,7 @@ draw_row:
 	add $t0, $t0, 4		# increment the display pointer
 	add $t4, $t4, 1		# increment the width counter
 	bne $t4, $t1, draw_row	# loop until it reaches the width value
-	add $t0, $t0, 4		# increment the display pointer to skip the right wall
+	add $t0, $t0, 84		# increment the display pointer to skip the right wall
 	add $t3, $t3, 1		# increment the height counter
 	bne $t3, $t2, draw_grid	# loop until it reaches the height value
 
@@ -622,22 +628,23 @@ draw_row:
 # draws walls
 draw_walls:
 	lw $t0, ADDR_DSPL	# load display base address
-	lw $t1, black		# load black color for wall
+	lw $t1, white		# load white color for wall
 	lw $t2, dspl_wdth_unit	# load unit display width
 	sll $t2, $t2, 2		# multiply unit display width by 4 to get the offset
 	lw $t3, dspl_hght_unit	# load unit display height
 draw_w:
-	sw $t1, 0($t0)		# draw a pixel of the left wall
+	sw $t1, 40($t0)		# draw a pixel of the left wall
 	add $t0, $t0, $t2	# add the width offset (go to the next row)
-	sw $t1, -4($t0)		# draw a pixel of the right wall
+	sw $t1, -44($t0)		# draw a pixel of the right wall
 	addi $t3, $t3, -1	# decrement the height counter
 	bne $t3, 1, draw_w	# loop until it reaches 1, as the last row is drawn fully
 	lw $t3, dspl_wdth_unit	# initialize the counter to unit width
 draw_lw:
-	sw $t1, 0($t0)		# draw a pixel of the bottom wall
+	sw $t1, 40($t0)		# draw a pixel of the bottom wall
 	addi $t0, $t0, 4	# increment the display pointer
-	addi $t3, $t3, -1	# decrement the counter
-	bnez $t3, draw_lw	# loop for each pixel in the row
+	addi $t2, $t2, -2	# decrement the counter
+	li $t3, 104
+	bne $t2, $t3, draw_lw	# loop for each pixel in the row
 	jr $ra			# return
 
 
