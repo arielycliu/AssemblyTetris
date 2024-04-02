@@ -18,10 +18,11 @@
 	light_grey: 	.word 0x00E0E0E0	# Light grey color
 	dark_grey: 	.word 0x00C0C0C0	# Dark grey color
 	black: 		.word 0x00000000	# Black color
+	white:      .word 0x00FFFFFF
     
     
 	# Constants
-	dspl_wdth_unit:	.word 12       		# Unit display width
+	dspl_wdth_unit:	.word 32       		# Unit display width
 	dspl_hght_unit:	.word 32       		# Unit display height
 	field_wdth:	.word 10		# Game field width
 	field_hght:	.word 31		# Game field height
@@ -35,7 +36,7 @@
 	ADDR_KBRD:	.word 0xffff0000
 	
 	# Game field
-	game_field:	.word 0:310		# 930 is 30*31, full size of the game field, initialized to 0
+	game_field:	.word 0:200		# 930 is 30*31, full size of the game field, initialized to 0
 	
 	# Tetrominoes
 	# I piece
@@ -217,7 +218,7 @@ main:
     jal return_tetris_piece_data_address
 	move $s0, $v0		# load tetromino T address
 	
-	lw $s1, field_wdth		# load field width
+	lw $s1, dspl_wdth_unit		# load field width
 	srl $s1, $s1, 1			# divide by 2 to get the initial x coordinate of tetromino
 	addi $s1, $s1, -1		# subtract 1 to center it
 	li $s2, 0			# load 0 as initial y coordinate of tetromino
@@ -228,6 +229,9 @@ main:
 	move $a2, $s1			# $a2 = tetromino block x coordinate
 	move $a3, $s2			# $a3 = tetromino block y coordinate
 	jal draw_tmino			# draw the current tetromino
+	
+	li $v0, 1
+	syscall
 game_loop:
 	# 1a. Check if key has been pressed
 	lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
@@ -301,7 +305,7 @@ generate_tmino:
     jal return_tetris_piece_data_address
     move $s0, $v0 # move to store in s0
 	
-	lw $s1, field_wdth		# load field width
+	lw $s1, dspl_wdth_unit		# load field width
 	srl $s1, $s1, 1			# divide by 2 to get the initial x coordinate of tetromino
 	addi $s1, $s1, -1		# subtract 1 to center it
 	li $s2, 0			# load 0 as initial y coordinate of tetromino
@@ -324,10 +328,7 @@ draw_screen:
 	bnez $s4, quit			# if the game is over, exit the loop
 	# 4. Sleep
 game_sleep:
-    # 4. Sleep
-    li $v0, 32
-    li $a0, 1000  # sleep for 100 milliseconds
-    # 5. Go back to 1
+    	# 5. Go back to 1
 	b game_loop			# repeat all over again
 quit:
 	li $v0, 10              	# terminate the program gracefully
@@ -603,6 +604,8 @@ draw_field:
 	lw $t0, ADDR_DSPL	# load display base address
 	la $t9, game_field	# load game field address
 	
+	addi $t0, $t0, 40
+	
 	lw $t1, field_wdth	# load game field width
 	lw $t2, field_hght	# load game field height
 	li $t3, 0		# initialize height counter
@@ -616,7 +619,7 @@ draw_row:
 	add $t0, $t0, 4		# increment the display pointer
 	add $t4, $t4, 1		# increment the width counter
 	bne $t4, $t1, draw_row	# loop until it reaches the width value
-	add $t0, $t0, 4		# increment the display pointer to skip the right wall
+	add $t0, $t0, 84		# increment the display pointer to skip the right wall
 	add $t3, $t3, 1		# increment the height counter
 	bne $t3, $t2, draw_grid	# loop until it reaches the height value
 
@@ -625,22 +628,23 @@ draw_row:
 # draws walls
 draw_walls:
 	lw $t0, ADDR_DSPL	# load display base address
-	lw $t1, black		# load black color for wall
+	lw $t1, white		# load white color for wall
 	lw $t2, dspl_wdth_unit	# load unit display width
 	sll $t2, $t2, 2		# multiply unit display width by 4 to get the offset
 	lw $t3, dspl_hght_unit	# load unit display height
 draw_w:
-	sw $t1, 0($t0)		# draw a pixel of the left wall
+	sw $t1, 40($t0)		# draw a pixel of the left wall
 	add $t0, $t0, $t2	# add the width offset (go to the next row)
-	sw $t1, -4($t0)		# draw a pixel of the right wall
+	sw $t1, -44($t0)		# draw a pixel of the right wall
 	addi $t3, $t3, -1	# decrement the height counter
 	bne $t3, 1, draw_w	# loop until it reaches 1, as the last row is drawn fully
 	lw $t3, dspl_wdth_unit	# initialize the counter to unit width
 draw_lw:
-	sw $t1, 0($t0)		# draw a pixel of the bottom wall
+	sw $t1, 40($t0)		# draw a pixel of the bottom wall
 	addi $t0, $t0, 4	# increment the display pointer
-	addi $t3, $t3, -1	# decrement the counter
-	bnez $t3, draw_lw	# loop for each pixel in the row
+	addi $t2, $t2, -2	# decrement the counter
+	li $t3, 104
+	bne $t2, $t3, draw_lw	# loop for each pixel in the row
 	jr $ra			# return
 
 
