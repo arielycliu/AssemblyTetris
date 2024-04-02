@@ -18,7 +18,7 @@
 	light_grey: 	.word 0x00E0E0E0	# Light grey color
 	dark_grey: 	.word 0x00C0C0C0	# Dark grey color
 	black: 		.word 0x00000000	# Black color
-    
+    white:      .word 0x00FFFFFF
     
 	# Constants
 	dspl_wdth_unit:	.word 12       		# Unit display width
@@ -278,12 +278,16 @@ increase_gravity:
 keyboard_input:
 	lw $a0, 4($t0)                  # load second word from keyboard
 	
+	li $v0, 1 # print piece
+	syscall
+	
 	beq $a0, 0x71, quit     	# if the key q was pressed, jump to quit
 	beq $a0, 0x61, move_left	# if the key a was pressed, jump to move tetromino left
 	beq $a0, 0x64, move_right	# if the key d was pressed, jump to move tetromino right
 	beq $a0, 0x73, move_down	# if the key s was pressed, jump to move tetromino down
 	beq $a0, 0x77, rotate		# if the key w was pressed, jump to rotate tetromino
 	beq $a0, 0x20, drop		# if the key w was pressed, jump to rotate tetromino
+	beq $a0, 0x70, pause
 	b game_sleep			# else, jump to sleep
 move_left:
 	move $a0, $s0			# $a0 = tetromino memory address
@@ -303,7 +307,19 @@ move_right:
 	bnez $v0, draw_screen		# if collision happened, jump to draw screen
 	addi $s1, $s1, 1		# increment the x coordinate to move right
 	b draw_screen			# jump to draw screen
-	
+pause:
+    jal draw_paused_screen
+pause2:
+    lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+	lw $t8, 0($t0)                  # load first word from keyboard
+	beq $t8, 1, paused_key_pressed      # if first word 1, key is pressed
+	b pause2
+paused_key_pressed:
+    lw $a0, 4($t0)                  # load second word from keyboard
+    beq $a0, 0x70, unpause  # if it's p then unpase
+    b pause2 # otherwise loop back to pause
+unpause:
+    b draw_screen
 drop:
     move $a0, $s0			# $a0 = tetromino memory address
 	move $a1, $s3			# $a1 = tetromino orientation
@@ -683,7 +699,7 @@ draw_row:
 	add $t3, $t3, 1		# increment the height counter
 	bne $t3, $t2, draw_grid	# loop until it reaches the height value
 
-	jr $ra			# return
+	# jr $ra			# return commented out so that walls are also always drawn
 
 # draws walls
 draw_walls:
@@ -770,4 +786,31 @@ return_J_piece_address:
 return_L_piece_address:
     la $v0, L0
     j return_tetris_piece_data_address_exit
+
+# Function that draws screen by decreasing the saturation of the color
+draw_paused_screen:
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    lw $t0, ADDR_DSPL	# load display base address
+    lw $t1, dspl_wdth_unit	# load game field width
+	lw $t2, dspl_hght_unit	# load game field height
+	li $t3, 0		# initialize height counter
+draw_paused:
+    li $t4, 0		# initialize width counter
+draw_paused_row:
+    lw $t5, 0($t0)		# load pixel from the display
+    add $t5, $t5, -20
+	sw $t5, 0($t0)		# draw it on the display
+	add $t0, $t0, 4		# increment the display pointer
+	add $t4, $t4, 1		# increment the width counter
+	bne $t4, $t1, draw_paused_row	# loop until it reaches the width value
+	# add $t0, $t0, 4		# increment the display pointer to skip the right wall
+	add $t3, $t3, 1		# increment the height counter
+	bne $t3, $t2, draw_paused	# loop until it reaches the height value
+
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
     
