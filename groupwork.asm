@@ -277,11 +277,13 @@ increase_gravity:
 
 keyboard_input:
 	lw $a0, 4($t0)                  # load second word from keyboard
+	
 	beq $a0, 0x71, quit     	# if the key q was pressed, jump to quit
 	beq $a0, 0x61, move_left	# if the key a was pressed, jump to move tetromino left
 	beq $a0, 0x64, move_right	# if the key d was pressed, jump to move tetromino right
 	beq $a0, 0x73, move_down	# if the key s was pressed, jump to move tetromino down
 	beq $a0, 0x77, rotate		# if the key w was pressed, jump to rotate tetromino
+	beq $a0, 0x20, drop		# if the key w was pressed, jump to rotate tetromino
 	b game_sleep			# else, jump to sleep
 move_left:
 	move $a0, $s0			# $a0 = tetromino memory address
@@ -301,6 +303,26 @@ move_right:
 	bnez $v0, draw_screen		# if collision happened, jump to draw screen
 	addi $s1, $s1, 1		# increment the x coordinate to move right
 	b draw_screen			# jump to draw screen
+	
+drop:
+    move $a0, $s0			# $a0 = tetromino memory address
+	move $a1, $s3			# $a1 = tetromino orientation
+	move $a2, $s1			# $a2 = tetromino block x coordinate
+	addi $a3, $s2, 1		# $a3 = tetromino block y coordinate + 1
+	jal check_collision		# check if tetromino will land
+	beqz $v0, drop_by_one
+	# there is a collision
+	move $a0, $s0			# $a0 = tetromino memory address
+	move $a1, $s3			# $a1 = tetromino orientation
+	move $a2, $s1			# $a2 = tetromino block x coordinate
+	move $a3, $s2			# $a3 = tetromino block y coordinate
+	jal store_tmino			# otherwise, store the current tetromino
+	jal remove_lines		# remove the filled lines of blocks
+	b generate_tmino		# and jump to generate a new one
+drop_by_one:
+    addi $s2, $s2, 1	# increment y
+    b drop  # loop back to drop further
+	
 move_down:
 	move $a0, $s0			# $a0 = tetromino memory address
 	move $a1, $s3			# $a1 = tetromino orientation
@@ -308,6 +330,8 @@ move_down:
 	addi $a3, $s2, 1		# $a3 = tetromino block y coordinate + 1
 	jal check_collision		# check if tetromino will land
 	beqz $v0, cont_mdown		# if no, proceed with moving down
+	
+	# collision
 	move $a0, $s0			# $a0 = tetromino memory address
 	move $a1, $s3			# $a1 = tetromino orientation
 	move $a2, $s1			# $a2 = tetromino block x coordinate
