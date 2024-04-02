@@ -235,7 +235,11 @@ main:
     jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
     jal draw_current_piece  # draw the current piece in play
     
-    b game_loop 
+    jal store_dead_piece_in_board_state
+    jal draw_checkerboard
+    jal draw_dead_pieces
+    
+    # b game_loop 
     
     # li $v0, 10     # syscall code for exit
     # syscall        # perform syscall to exit program
@@ -495,60 +499,8 @@ store_dead_piece_in_board_state:
     # Loads the address the tetris piece in .data - $a0
     # Loads which color to use when drawing - $a1
     
-    li $t0, 0
-    beq $s3, $t0, read_I_piece
-    
-    li $t0, 1
-    beq $s3, $t0, read_O_piece
-    
-    li $t0, 2
-    beq $s3, $t0, read_T_piece
-    
-    li $t0, 3
-    beq $s3, $t0, read_S_piece
-    
-    li $t0, 4
-    beq $s3, $t0, read_Z_piece
-    
-    li $t0, 5
-    beq $s3, $t0, read_J_piece
-    
-    li $t0, 6
-    beq $s3, $t0, read_L_piece 
-    
-read_I_piece:
-    la $t0, I0  # load piece address
-    add $s4, $s4, $t0 # add address to orientation offset
-    b store_dead_piece_in_board_state_loop
-
-read_O_piece:
-    la $t0, O0  # load piece address
-    add $s4, $s4, $t0 # add address to orientation offset
-    b store_dead_piece_in_board_state_loop
-
-read_T_piece:
-    la $t0, T0  # load piece address
-    add $s4, $s4, $t0 # add address to orientation offset
-    b store_dead_piece_in_board_state_loop
-
-read_S_piece:
-    la $t0, S0  # load piece address
-    add $s4, $s4, $t0 # add address to orientation offset
-    b store_dead_piece_in_board_state_loop
-
-read_Z_piece:
-    la $t0, Z0  # load piece address
-    add $s4, $s4, $t0 # add address to orientation offset
-    b store_dead_piece_in_board_state_loop
-
-read_J_piece:
-    la $t0, J0  # load piece address
-    add $s4, $s4, $t0 # add address to orientation offset
-    b store_dead_piece_in_board_state_loop
-
-read_L_piece:
-    la $t0, L0  # load piece address
-    add $s4, $s4, $t0 # add address to orientation offset
+    jal return_tetris_piece_data_address # RETURNS: $v0 piece address
+    add $s4, $s4, $v0 # add address to orientation offset
     b store_dead_piece_in_board_state_loop
     
 store_dead_piece_in_board_state_loop:
@@ -690,72 +642,8 @@ draw_current_piece:
     jal calc_offset_board  # returns display address at $v0, does not impact $s4
     move $s6, $v0 # store in s6 to avoid getting overwritten - ARG for display address
 
-    # Branching logic
-    # Loads the address of the tetris piece in .data - $s4
-    
-    # li $v0, 1
-    # move $a0, $s3
-    # syscall # print piece type
-    
-    li $t0, 0
-    beq $s3, $t0, load_I_piece
-    
-    li $t0, 1
-    beq $s3, $t0, load_O_piece
-    
-    li $t0, 2
-    beq $s3, $t0, load_T_piece
-    
-    li $t0, 3
-    beq $s3, $t0, load_S_piece
-    
-    li $t0, 4
-    beq $s3, $t0, load_Z_piece
-    
-    li $t0, 5
-    beq $s3, $t0, load_J_piece
-    
-    li $t0, 6
-    beq $s3, $t0, load_L_piece
-
-# 7 functions for loading the address and the color
-# ARGUMENTS: $s0 for piece orientation
-# RETURNS: $s4 updated to reflect offset + base address of piece
-# Loads the address the tetris piece in .data (accounts for orientation) - $a0
-# Which color is encoded in the tetris piece
-load_I_piece:
-    la $t0, I0
-    add $s4, $s4, $t0 # add address to offset
-    b draw_current_piece_loop
-
-load_O_piece:
-    la $t0, O0
-    add $s4, $s4, $t0 # address + offset
-    b draw_current_piece_loop
-
-load_T_piece:
-    la $t0, T0
-    add $s4, $s4, $t0 # address + offset
-    b draw_current_piece_loop
-
-load_S_piece:
-    la $t0, S0
-    add $s4, $s4, $t0 # address + offset
-    b draw_current_piece_loop
-
-load_Z_piece:
-    la $t0, Z0
-    add $s4, $s4, $t0 # address + offset
-    b draw_current_piece_loop
-
-load_J_piece:
-    la $t0, J0
-    add $s4, $s4, $t0 # address + offset
-    b draw_current_piece_loop
-
-load_L_piece:
-    la $t0, L0
-    add $s4, $s4, $t0 # address + offset
+    jal return_tetris_piece_data_address # store piece addres in $v0
+    add $s4, $s4, $v0  # add address to offset
     b draw_current_piece_loop
 
 # Helper function for draw_current_piece_loop that handles the branching: to draw or not to draw the pixel
