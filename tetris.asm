@@ -230,15 +230,12 @@ DISPLAY_HEIGHT:
 	.globl main
 
 main:
-    
-    jal draw_border
-    jal draw_checkerboard
+    jal draw_border  # draw white boarder that defines game area
+    jal draw_checkerboard   # draws checkered pattern on game area
     jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
-    jal draw_current_piece
+    jal draw_current_piece  # draw the current piece in play
     
-    # jal store_dead_piece_in_board_state # stores current piece in board
-    
-    b game_loop
+    b game_loop 
     
     # li $v0, 10     # syscall code for exit
     # syscall        # perform syscall to exit program
@@ -402,6 +399,74 @@ draw_current_dead_piece_pixel_exit:
     add $s6, $s6, 4  # move writing pointer by 1 pixel
 	add $s4, $s4, 4  # move reading pointer by 1 pixel
     jr $ra
+    
+##################################################################################################################################################################################
+# Retrieve data address pieces for different pieces
+##################################################################################################################################################################################
+
+# Function that returns the memory address to start reading tetris data by
+return_tetris_piece_data_address:
+    # ARGUMENTS:
+    # - $s3 piece type
+    # RETURNS:
+    # - $v0 piece address
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    li $t0, 0
+    beq $s3, $t0, return_I_piece_address
+    
+    li $t0, 1
+    beq $s3, $t0, return_O_piece_address
+    
+    li $t0, 2
+    beq $s3, $t0, return_T_piece_address
+    
+    li $t0, 3
+    beq $s3, $t0, return_S_piece_address
+    
+    li $t0, 4
+    beq $s3, $t0, return_Z_piece_address
+    
+    li $t0, 5
+    beq $s3, $t0, return_J_piece_address
+    
+    li $t0, 6
+    beq $s3, $t0, return_L_piece_address 
+
+return_tetris_piece_data_address_exit:
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return to where check_for_key_press was called in game_loop
+    
+return_I_piece_address:
+    la $v0, I0
+    j return_tetris_piece_data_address_exit
+
+return_O_piece_address:
+    la $v0, O0
+    j return_tetris_piece_data_address_exit
+
+return_T_piece_address:
+    la $v0, T0
+    j return_tetris_piece_data_address_exit
+
+return_S_piece_address:
+    la $v0, S0
+    j return_tetris_piece_data_address_exit
+
+return_Z_piece_address:
+    la $v0, Z0
+    j return_tetris_piece_data_address_exit
+    
+return_J_piece_address:
+    la $v0, J0
+    j return_tetris_piece_data_address_exit
+
+return_L_piece_address:
+    la $v0, L0
+    j return_tetris_piece_data_address_exit
     
 ##################################################################################################################################################################################
 # Storing dead pieces in board state
