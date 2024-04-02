@@ -65,8 +65,9 @@ DISPLAY_HEIGHT:
     blue:          .word 0x000000FF  # J - 5
     orange:        .word 0x00FF7F00  # L - 6
     white: 	       .word 0x00FFFFFF  # border color
+    violet:        .word 0x0bba1ff
     light_grey:    .word 0x00E0E0E0	 # checkered grid light color
-	dark_grey:     .word 0x007F7F7F  # checkered grid dark color
+	dark_grey:     .word 0x00CCCCCC  # checkered grid dark color
 	board_state:   .word 0:200       # used to store current pieces on the board (BOARD_WIDTH * BOARD_HEIGHT = 200)
 	                                 # each coordinate will store 0 if no piece is there or the name of the piece I, O, T, S, Z, J, L if it's the top left corner of the piece
 	                                 # initialized to value of 0
@@ -235,6 +236,12 @@ main:
     jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
     jal draw_current_piece  # draw the current piece in play
     
+    
+    
+    la $a0, board_state
+    li $v0, 1
+    syscall
+    
     b game_loop 
     
     # li $v0, 10     # syscall code for exit
@@ -248,14 +255,10 @@ game_loop:
     # 2a. Check for collisions
 	# 2b. Update locations (paddle, ball)
 	# 3. Draw the screen
-	# jal draw_checkerboard only draw on update
-	# jal draw_dead_pieces
-	jal draw_current_piece
-	
 	
 	# 4. Sleep
     li $v0, 32
-    li $a0, 3000  # sleep for 100 milliseconds
+    li $a0, 100  # sleep for 100 milliseconds
     #5. Go back to 1
     b game_loop
 
@@ -267,6 +270,37 @@ game_loop:
 ##################################################################################################################################################################################
 # Collision with border sensing logic
 ##################################################################################################################################################################################
+
+# Function to check if moving down would result in a BORDER collision, returns 0 if no collision occurs and -1 otherwise
+check_bottom_border_collision:
+    # ARGUMENTS: none, we can calculate new position from $s1 and $s2
+    # RETURNS:
+    # - $v0 which is equal to 0 when valid and -11 when invalid or collision
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    jal bottommost_pixel # returns offset to reach bottom pixel via $v0
+    add $v0, $v0, $s2 # add the offset to y axis
+    addi $v0, $v0, 2  # add one to $v0 to account for moving down, and add one to account for border
+    
+    lw $t1, BOARD_HEIGHT
+    bgt $v0, $t1, return_border_collision # branch if v0 is greater than board height -> border collision
+    b return_no_border_collision
+
+# Function to check if moving left would result in a BORDER collision, returns 0 if no collision occurs and -1 otherwise
+check_left_border_collision:
+    # ARGUMENTS: none, we can calculate new position from $s1 and $s2
+    # RETURNS:
+    # - $v0 which is equal to 0 when valid and -11 when invalid or collision
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    jal leftmost_pixel # returns offset to reach leftmost pixel via $v0
+    add $v0, $v0, $s1 # add the offset to x axis
+    addi $v0, $v0, -1  # subtract one to $v0 to account for moving right, and subtract one to account for border
+    
+    blt $v0, $zero, return_border_collision # branch if v0 is less than zero -> border collision
+    b return_no_border_collision
 
 # Function to check if moving right would result in a BORDER collision, returns 0 if no collision occurs and -1 otherwise
 check_right_border_collision:
@@ -409,8 +443,8 @@ bottommost_pixel:
     addi $sp, $sp, -4 # allocate space
     sw $ra, 0($sp) # push
     
-    # jal return_tetris_piece_data_address # load piece address
-    add $v0, $v0, 48 # move piece address to last row, leftmost pixel, search from bottom to top 
+    jal return_tetris_piece_data_address # load piece address
+    addi $v0, $v0, 48 # move piece address to last row, leftmost pixel, search from bottom to top 
     
     # Bottom Row
     move $a0, $v0
@@ -480,6 +514,7 @@ keyboard_input:
     sw $ra, 0($sp) # push
     
     lw $t1, 4($t0) # Load second word from keyboard
+    
     beq $t1, 0x71, quit     # quit if key q is pressed
     beq $t1, 119, w_key     # w
     beq $t1, 97,  a_key     # a
@@ -490,7 +525,10 @@ keyboard_input:
     
 # Code to exit to game_loop
 keyboard_input_exit:
-     # Return logic
+    jal draw_checkerboard
+    jal draw_dead_pieces
+    jal draw_current_piece
+    # Return logic
     lw $ra, 0($sp) # pop value
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra # return to where check_for_key_press was called in game_loop
@@ -506,17 +544,24 @@ w_key:
     li $t0, 4
     div $s0, $t0  # find newpos % 4 so that the position changes wrap around
     mfhi $s0   # store this remainder as the new position
-    jal draw_checkerboard
     j keyboard_input_exit
 
 a_key:
+    jal check_left_border_collision
+    beq $v0, $zero, a_key_move  # if equal to 0, no collision found
+    j keyboard_input_exit
+a_key_move:
     addi $s1, $s1, -1
-    jal draw_checkerboard
     j keyboard_input_exit
 
 s_key:
+    jal check_bottom_border_collision
+    beq $v0, $zero, s_key_move  # if equal to 0, aka no collision then move down
+    jal store_current_piece_in_board_state # if we hit the bottom then this piece is dead
+    jal generate_new_piece # create new piece
+    j keyboard_input_exit
+s_key_move:
     addi $s2, $s2, 1
-    jal draw_checkerboard
     j keyboard_input_exit
 
 d_key:
@@ -525,7 +570,6 @@ d_key:
     j keyboard_input_exit
 d_key_move:
     addi $s1, $s1, 1
-    jal draw_checkerboard
     j keyboard_input_exit
 
 ##################################################################################################################################################################################
@@ -545,6 +589,9 @@ draw_dead_pieces:
     
     li $s5, 0 # row count
     la $s4, board_state # read from this address
+    
+    move $a0, $s4
+    
     b draw_dead_pieces_loop # jump to loop
     
 # Loop for the function that draws dead pieces that loops 20 times for each row
@@ -558,13 +605,16 @@ draw_dead_pieces_loop:
     add $s5, $s5, 1 # increment row count by 1
     
     # calculate new display address for next row
-    move $a0, $s2  # x coord
-    add $a1, $s2, $s5   # new y = y + rows_drawn
+    move $a0, $zero  # x coord is still 0
+    add $a1, $zero, $s5   # new y = rows_drawn
     jal calc_offset_board # calculate new display address
     move $s6, $v0 # store new address
     
     lw $t1, BOARD_HEIGHT
     blt $s5, $t1, draw_dead_pieces_loop  # if row_count >= board_height then return    
+    
+    add $s6, $s6, -4  # move writing pointer by 1 pixel
+	add $s4, $s4, -4  # move reading pointer by 1 pixel
     
     # Return logic
     lw $ra, 0($sp) # pop value
@@ -681,7 +731,7 @@ return_L_piece_address:
 
 # Function that stores the colors of the dead piece in the correct pixels of the board state
 # that way we can specifically draw the colors of the dead pieces over the checkered background
-store_dead_piece_in_board_state:
+store_current_piece_in_board_state:
     # ARGUMENTS
     # - $s0 current piece orientation
     # - $s1 current piece x 
@@ -704,9 +754,9 @@ store_dead_piece_in_board_state:
     
     jal return_tetris_piece_data_address # RETURNS: $v0 piece address
     add $s4, $s4, $v0 # add address to orientation offset
-    b store_dead_piece_in_board_state_loop
+    b store_current_piece_in_board_state_loop
     
-store_dead_piece_in_board_state_loop:
+store_current_piece_in_board_state_loop:
     # ARGUMENTS:
     # - Current address of piece:   $s4 (place we read piece colors from)
     # - Rows drawn:                 $s5 (used to check end condition)
@@ -744,7 +794,7 @@ store_dead_piece_in_board_state_loop:
     
     # if pixels drawn >= 4
     lw $t1, numofrows_piece_data
-    blt $s5, $t1, store_dead_piece_in_board_state_loop
+    blt $s5, $t1, store_current_piece_in_board_state_loop
     
     # Return logic
     lw $ra, 0($sp) # pop value
@@ -894,6 +944,10 @@ draw_current_piece_loop:
     move $s6, $v0 # store in s6 to avoid getting overwritten - ARG for display address
 	# we can leave the piece pointer alone as it will just continue to read the next value stored "chronologically"
     
+    # if invalid address
+    li $t2, -1
+    beq $s6, $t2, draw_current_piece_loop_exit
+    
     # if pixels drawn >= 4
     lw $t1, numofrows_piece_data
     blt $s5, $t1, draw_current_piece_loop
@@ -902,7 +956,10 @@ draw_current_piece_loop:
     lw $ra, 0($sp) # pop value
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra
-
+draw_current_piece_loop_exit:
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
 
 ##################################################################################################################################################################################
 # Basic drawing helper functions (perform calculations)
