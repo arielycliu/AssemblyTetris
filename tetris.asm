@@ -814,6 +814,7 @@ store_current_piece_in_board_state:
     add $s4, $s4, $v0 # add address to orientation offset
     b store_current_piece_in_board_state_loop
     
+# Loop that stores each row of the piece one by one into the board state
 store_current_piece_in_board_state_loop:
     # ARGUMENTS:
     # - Current address of piece:   $s4 (place we read piece colors from)
@@ -822,21 +823,19 @@ store_current_piece_in_board_state_loop:
 
 	lw $t0, 0($s4)  # load color at piece data address to t0
     sw $t0, 0($s6)  # draw the pixel, it could draw 0
+    jal store_current_piece_pixel
 	
 	add $s6, $s6, 4  # move memory pointer by 1 pixel
 	add $s4, $s4, 4  # move piece pointer by 1 pixel
-	lw $t0, 0($s4)  # load color at piece data address to t0
-    sw $t0, 0($s6)  # draw the pixel
+	jal store_current_piece_pixel
 	
 	add $s6, $s6, 4  # move memory pointer by 1 pixel
 	add $s4, $s4, 4  # move piece pointer by 1 pixel
-	lw $t0, 0($s4)  # load color at piece data address to t0
-    sw $t0, 0($s6)  # draw the pixel
+	jal store_current_piece_pixel
 	
 	add $s6, $s6, 4  # move memory pointer by 1 pixel
 	add $s4, $s4, 4  # move piece pointer by 1 pixel
-	lw $t0, 0($s4)  # load color at piece data address to t0
-    sw $t0, 0($s6)  # draw the pixel
+	jal store_current_piece_pixel
 	
 	add $s4, $s4, 4  # move piece pointer by 1 pixel
 	add $s5, $s5, 1 # drew 4 pixels so increase count of rows by 1
@@ -858,6 +857,16 @@ store_current_piece_in_board_state_loop:
     lw $ra, 0($sp) # pop value
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra
+
+# Function that stores a single pixel, only stores is pixel is not 0
+store_current_piece_pixel:
+    lw $t0, 0($s4)  # load color at piece data address to t0
+    beq $t0, $zero, store_current_piece_pixel_exit  # if color is zero, exit the function early
+    sw $t0, 0($s6)  # draw the pixel
+    b store_current_piece_pixel_exit # exit
+store_current_piece_pixel_exit:
+    jr $ra
+
 
 # Function that take in x, y coord for a piece on the board and returns the address to start storing in the game_board
 # def calc_offset_board_state(x, y):
@@ -900,11 +909,10 @@ generate_new_piece:
     sw $ra, 0($sp) # push
     
     # Generate a random number between 0 and 6
-    # li $v0, 42 # command for random number generation
-    # li $a0, 0  # random number generator ID
-    # li $a1, 7  # maximum value is exclusive
-    # syscall # stores return value in $a0
-    li $a0, 0
+    li $v0, 42 # command for random number generation
+    li $a0, 0  # random number generator ID
+    li $a1, 7  # maximum value is exclusive
+    syscall # stores return value in $a0
     
     move $s3, $a0  # move to where we are storing the piece type
     
@@ -1242,6 +1250,11 @@ calc_offset_board:
 # Error function: returns -1 stored at $v0 if the new coordinate is invalid
 calc_offset_board_ERROR:
     li $v0, -1
+    
+    move $a0, $v0
+    li $v0, 1
+    syscall
+    
     lw $ra, 0($sp) # load last return address to stack
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra # return
