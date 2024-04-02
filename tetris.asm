@@ -235,11 +235,7 @@ main:
     jal generate_new_piece  # generates x, y, type, position of piece and jumps to draw_new_piece
     jal draw_current_piece  # draw the current piece in play
     
-    jal store_dead_piece_in_board_state
-    jal draw_checkerboard
-    jal draw_dead_pieces
-    
-    # b game_loop 
+    b game_loop 
     
     # li $v0, 10     # syscall code for exit
     # syscall        # perform syscall to exit program
@@ -264,6 +260,125 @@ game_loop:
     b game_loop
 
 ##################################################################################################################################################################################
+# Collision with dead pieces sensing logic
+##################################################################################################################################################################################
+
+
+##################################################################################################################################################################################
+# Collision with border sensing logic
+##################################################################################################################################################################################
+
+check_right_border_collision:
+    
+
+# Function that returns how much to increment the x value by to reach the first (aka leftmost) pixel
+# for example I0 gives 0 while I1 gives 2
+leftmost_pixel:
+    # NO ARGUMENTS
+    # RETURNS:
+    # - $v0 x offset amount from top left pixel of piece data to rightmost pixel
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    jal return_tetris_piece_data_address # load piece address
+    
+    # Column 4
+    move $a0, $v0
+    jal add_piece_column_colors
+    move $t0, $v0 # store in t0
+    li $v0, 0
+    bne $t0, $zero, leftmost_pixel_exit  # if there is a color in the first column we can exit and return 0
+    
+    # Column 3
+    addi $a0, $a0, 4  # move to right
+    jal add_piece_column_colors
+    move $t0, $v0 # store in t0
+    li $v0, 1
+    bne $t0, $zero, leftmost_pixel_exit  # if there is a color in the second column we can exit and return 1
+    
+    # Column 2
+    addi $a0, $a0, 4  # move to right
+    jal add_piece_column_colors
+    move $t0, $v0 # store in t0
+    li $v0, 2
+    bne $t0, $zero, leftmost_pixel_exit
+    
+    # Column 1
+    addi $a0, $a0, 4  # move to right
+    jal add_piece_column_colors
+    move $t0, $v0 # store in t0
+    li $v0, 3
+    bne $t0, $zero, leftmost_pixel_exit
+leftmost_pixel_exit:
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return to where check_for_key_press was called in game_loop
+
+# Function that returns how much to increment the x value by to reach the last (aka rightmost) pixel
+# for example I0 gives 4 while I1 gives 2
+rightmost_pixel:
+    # NO ARGUMENTS
+    # RETURNS:
+    # - $v0 x offset amount from top left pixel of piece data to rightmost pixel
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    jal return_tetris_piece_data_address # load piece address
+    add $v0, $v0, 12 # move piece address to last column starting searching from right to left 
+    
+    # Column 1
+    move $a0, $v0
+    jal add_piece_column_colors
+    move $t0, $v0 # store in t0
+    li $v0, 3
+    bne $t0, $zero, rightmost_pixel_exit  # search for color from right to left (<--), if color then exit
+    
+    # Column 2
+    addi $a0, $a0, -4  # move to left column
+    jal add_piece_column_colors
+    move $t0, $v0 # store in t0
+    li $v0, 2
+    bne $t0, $zero, rightmost_pixel_exit  
+    
+    # Column 3
+    addi $a0, $a0, -4  # move to left column
+    jal add_piece_column_colors
+    move $t0, $v0 # store in t0
+    li $v0, 1
+    bne $t0, $zero, rightmost_pixel_exit
+    
+    # Column 4
+    addi $a0, $a0, -4  # move to next column
+    jal add_piece_column_colors
+    move $t0, $v0 # store in t0
+    li $v0, 0
+    bne $t0, $zero, rightmost_pixel_exit
+
+rightmost_pixel_exit:
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return to where check_for_key_press was called in game_loop
+
+# Adds up every color in one column of piece data given the address of the top of the column
+# used to find the leftmost, rightmost pixel location by checking if a column has a color
+add_piece_column_colors:
+    # ARGUMENTS:
+    # - $a0 is the address pointing to the top of column in piece data
+    # RETURNS:
+    # - $v0 value that is either 0 or nonzero if there was a color in that column
+    lw $t1, 0($a0) # first pixel
+    move $v0, $t1
+    lw $t1, 16($a0)
+    add $v0, $v0, $t1  # add color of first to second
+    lw $t1, 32($a0)
+    add $v0, $v0, $t1  # repeat for third and fourth
+    lw $t1, 48($a0)
+    add $v0, $v0, $t1 # return the color sum
+    jr $ra 
+
+##################################################################################################################################################################################
 # Keyboard sensing logic
 ##################################################################################################################################################################################
 
@@ -283,7 +398,7 @@ keyboard_input:
     lw $t1, 4($t0) # Load second word from keyboard
     beq $t1, 0x71, quit     # quit if key q is pressed
     beq $t1, 119, w_key     # w
-    beq $t1, 97, a_key      # a
+    beq $t1, 97,  a_key     # a
     beq $t1, 115, s_key     # s
     beq $t1, 100, d_key     # d
     
