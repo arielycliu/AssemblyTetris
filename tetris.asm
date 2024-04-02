@@ -268,9 +268,34 @@ game_loop:
 # Collision with border sensing logic
 ##################################################################################################################################################################################
 
+# Function to check if moving right would result in a BORDER collision, returns 0 if no collision occurs and -1 otherwise
 check_right_border_collision:
+    # ARGUMENTS: none, we can calculate new position from $s1 and $s2
+    # RETURNS:
+    # - $v0 which is equal to 0 when valid and -11 when invalid or collision
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
     
-
+    jal rightmost_pixel # returns offset to reach rightmost pixel via $v0
+    add $v0, $v0, $s1 # add the offset to x axis
+    addi $v0, $v0, 2  # add one to $v0 to account for moving right, and one to account for border
+    
+    lw $t1, BOARD_WIDTH
+    bgt $v0, $t1, return_border_collision # branch if v0 is greater than board_width -> border collision
+    b return_no_border_collision
+return_border_collision:
+    li $v0, -1
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return to where check_for_key_press was called in game_loop
+return_no_border_collision:
+    li $v0, 0
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return to where check_for_key_press was called in game_loop
+    
 # Function that returns how much to increment the x value by to reach the first (aka leftmost) pixel
 # for example I0 gives 0 while I1 gives 2
 leftmost_pixel:
@@ -354,7 +379,6 @@ rightmost_pixel:
     move $t0, $v0 # store in t0
     li $v0, 0
     bne $t0, $zero, rightmost_pixel_exit
-
 rightmost_pixel_exit:
     # Return logic
     lw $ra, 0($sp) # pop value
@@ -376,6 +400,66 @@ add_piece_column_colors:
     add $v0, $v0, $t1  # repeat for third and fourth
     lw $t1, 48($a0)
     add $v0, $v0, $t1 # return the color sum
+    jr $ra 
+
+bottommost_pixel:
+    # NO ARGUMENTS
+    # RETURNS:
+    # - $v0 x offset amount from top left pixel of piece data to rightmost pixel
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    # jal return_tetris_piece_data_address # load piece address
+    add $v0, $v0, 48 # move piece address to last row, leftmost pixel, search from bottom to top 
+    
+    # Bottom Row
+    move $a0, $v0
+    jal add_piece_row_colors
+    move $t0, $v0 # store in t0
+    li $v0, 3
+    bne $t0, $zero, bottommost_pixel_exit  # search for color from bottom to top, if color then exit
+    
+    # Row 3
+    addi $a0, $a0, -16  # move up a row
+    jal add_piece_row_colors
+    move $t0, $v0 # store in t0
+    li $v0, 2
+    bne $t0, $zero, bottommost_pixel_exit  
+    
+    # Row 2
+    addi $a0, $a0, -16  # move up a row
+    jal add_piece_row_colors
+    move $t0, $v0 # store in t0
+    li $v0, 1
+    bne $t0, $zero, bottommost_pixel_exit
+    
+    # Row 1
+    addi $a0, $a0, -16  # move up a row
+    jal add_piece_row_colors
+    move $t0, $v0 # store in t0
+    li $v0, 0
+    bne $t0, $zero, bottommost_pixel_exit
+bottommost_pixel_exit:
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return to where check_for_key_press was called in game_loop
+
+# Adds up every color in one row of piece data given the address of the start of the row
+# used to find the leftmost, rightmost pixel location by checking if a column has a color
+add_piece_row_colors:
+    # ARGUMENTS:
+    # - $a0 is the address pointing to the start of the row in the piece data
+    # RETURNS:
+    # - $v0 value that is either 0 or nonzero if there was a color in that column
+    lw $t1, 0($a0) # first pixel
+    move $v0, $t1
+    lw $t1, 4($a0)
+    add $v0, $v0, $t1  # add color of first to second
+    lw $t1, 8($a0)
+    add $v0, $v0, $t1  # repeat for third and fourth
+    lw $t1, 12($a0)
+    add $v0, $v0, $t1  # return the color sum
     jr $ra 
 
 ##################################################################################################################################################################################
@@ -436,6 +520,10 @@ s_key:
     j keyboard_input_exit
 
 d_key:
+    jal check_right_border_collision
+    beq $v0, $zero, d_key_move  # if equal to 0, aka no collision then move right
+    j keyboard_input_exit
+d_key_move:
     addi $s1, $s1, 1
     jal draw_checkerboard
     j keyboard_input_exit
