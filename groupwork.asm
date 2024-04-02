@@ -184,7 +184,8 @@
 		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
 		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
 		.word 0x00000000, 0x00FF7F00, 0x00FF7F00, 0x00000000
-
+    
+    gravity_count: .word 0
 
 ##############################################################################
 # Mutable Data
@@ -233,8 +234,20 @@ game_loop:
 	lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
 	lw $t8, 0($t0)                  # load first word from keyboard
 	beq $t8, 1, keyboard_input      # if first word 1, key is pressed
+	
+	lw $t1, gravity_count # read gravity count
+    addi $t1, $t1, 1  # add one to count down till gravity is applied
+    sw $t1, gravity_count # save change
+    
+    li $t2, 999999
+    bgt $t1, $t2, gravity
 	b game_sleep			# else, jump to sleep    	
 	# 1b. Check which key has been pressed
+gravity:
+    sw $zero, gravity_count # reset count
+    jal move_down  # gravity easy feature
+    b game_sleep
+
 keyboard_input:
 	lw $a0, 4($t0)                  # load second word from keyboard
 	beq $a0, 0x71, quit     	# if the key q was pressed, jump to quit
@@ -289,7 +302,6 @@ rotate:
 	andi $s3, $s3, 0x03		# take the modulo 4 value, as orientation 4 is equivalent to 0
 	b draw_screen			# jump to draw screen
 generate_tmino:
-    
 	# la $s0, tmino_T0		# load tetromino T address
 	# Generate a random number between 0 and 6
     li $v0, 42 # command for random number generation
@@ -326,7 +338,7 @@ draw_screen:
 game_sleep:
     # 4. Sleep
     li $v0, 32
-    li $a0, 1000  # sleep for 100 milliseconds
+    li $a0, 10000  # sleep for 100 milliseconds
     # 5. Go back to 1
 	b game_loop			# repeat all over again
 quit:
@@ -707,3 +719,4 @@ return_J_piece_address:
 return_L_piece_address:
     la $v0, L0
     j return_tetris_piece_data_address_exit
+    
