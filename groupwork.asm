@@ -186,10 +186,21 @@
 		.word 0x00000000, 0x00FF7F00, 0x00FF7F00, 0x00000000
     
     gravity_count: .word 0
+    gravity_time: .word 0x0FFFFF
+    decrease_gravity_time_count: .word 0
 
 ##############################################################################
 # Mutable Data
 ##############################################################################
+
+# Hard features: full set of tetris pieces
+# Easy features:
+# 1: gravity
+# 2: increase speed of gravity
+# 3: tetris pieces have different colors
+# 4: space bar drops the piece all the way down
+# 5: pause screen
+# 6: reset and gg screen
 
 ##############################################################################
 # Code
@@ -235,18 +246,34 @@ game_loop:
 	lw $t8, 0($t0)                  # load first word from keyboard
 	beq $t8, 1, keyboard_input      # if first word 1, key is pressed
 	
+	# Gravity_count: counts up from 0 to gravity_time, when it hits gravity_time -> drop block by 1 y coord
+	# Gravity_time: upper limit for gravity_count
+	# decrease_gravity_time_count: counts up from 0 to 10, when it hits 10 -> decrease gravity_time by 1
 	lw $t1, gravity_count # read gravity count
     addi $t1, $t1, 1  # add one to count down till gravity is applied
     sw $t1, gravity_count # save change
     
-    li $t2, 999999
-    bgt $t1, $t2, gravity
+    lw $t2, gravity_time  # upper limit for time
+    bgt $t1, $t2, gravity  # if count has reached gravity_time then move piece down
 	b game_sleep			# else, jump to sleep    	
 	# 1b. Check which key has been pressed
 gravity:
     sw $zero, gravity_count # reset count
-    jal move_down  # gravity easy feature
+    
+    lw $t3, decrease_gravity_time_count # read gravity count
+    addi $t3, $t3, 1  # add one to count down till gravity is applied
+    sw $t3, decrease_gravity_time_count # save change
+    
+    li $t2, 1
+    bgt $t3, $t2, increase_gravity  # time to decrease gravity_time
+    
+    jal move_down  # move block down
     b game_sleep
+increase_gravity:
+    lw $t1, gravity_time # read gravity ratio
+    addi $t1, $t1, -0x0000FF  # subtract one to decrease time till block falls
+    sw $t1, gravity_time # save change
+    jal move_down  # move block down
 
 keyboard_input:
 	lw $a0, 4($t0)                  # load second word from keyboard
