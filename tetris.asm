@@ -493,6 +493,9 @@ bottommost_pixel:
     sw $ra, 0($sp) # push
     
     jal return_tetris_piece_data_address # load piece address
+    lw $t0, sizeof_piece_data # 64
+    mult $t0, $s0, $t0  # account for different positions: position number * offset (64)
+    add $v0, $v0, $t0 # add offset to address
     addi $v0, $v0, 48 # move piece address to last row, leftmost pixel, search from bottom to top 
     
     # Bottom Row
@@ -611,6 +614,7 @@ a_key_move:
 s_key:
     jal check_bottom_border_collision
     beq $v0, $zero, s_key_move  # if equal to 0, aka no collision then move down
+    
     jal store_current_piece_in_board_state # if we hit the bottom then this piece is dead
     jal generate_new_piece # create new piece
     j keyboard_input_exit
@@ -900,7 +904,7 @@ generate_new_piece:
     # li $a0, 0  # random number generator ID
     # li $a1, 7  # maximum value is exclusive
     # syscall # stores return value in $a0
-    li $a0, 4
+    li $a0, 0
     
     move $s3, $a0  # move to where we are storing the piece type
     
