@@ -258,7 +258,7 @@ game_loop:
 	
 	# 4. Sleep
     li $v0, 32
-    li $a0, 100  # sleep for 100 milliseconds
+    li $a0, 60  # sleep for 100 milliseconds
     #5. Go back to 1
     b game_loop
 
@@ -271,11 +271,54 @@ game_loop:
 # Collision with border sensing logic
 ##################################################################################################################################################################################
 
+# Function to check if rotating clockwise would result in a BORDER collision, returns 0 if no collision occurs and -1 otherwise
+check_rotate_border_collision:
+    # ARGUMENTS: none, we can calculate new position from $s1 and $s2
+    # RETURNS:
+    # - $v0 which is equal to 0 when valid and -1 when invalid or collision
+    # calculate potential new piece orientation
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    move $t3, $s0  # keep a copy of s0 position
+    
+    add $s0, $s0, 1  # add 1 to current position and store result 
+    li $t1, 4
+    div $s0, $t1  # find s0 % 4 so that the position changes wrap around
+    mfhi $s0   # store this remainder as the new potential position
+    
+    # CHECK RIGHT
+    jal rightmost_pixel # returns offset to reach rightmost pixel via $v0
+    add $v0, $v0, $s1 # add the offset to x axis
+    addi $v0, $v0, 2  # add one to $v0 to account for moving right, and one to account for border
+    
+    lw $t1, BOARD_WIDTH
+    bgt $v0, $t1, return_border_collision # branch if v0 is greater than board_width -> border collision
+    
+    # CHECK LEFT
+    jal leftmost_pixel # returns offset to reach leftmost pixel via $v0
+    add $v0, $v0, $s1 # add the offset to x axis
+    addi $v0, $v0, -1  # subtract one to $v0 to account for moving right, and subtract one to account for border
+    
+    blt $v0, $zero, return_border_collision # branch if v0 is less than zero -> border collision
+    
+    # CHECK BOTTOM
+    jal bottommost_pixel # returns offset to reach bottom pixel via $v0
+    add $v0, $v0, $s2 # add the offset to y axis
+    addi $v0, $v0, 2  # add one to $v0 to account for moving down, and add one to account for border
+    
+    lw $t1, BOARD_HEIGHT
+    bgt $v0, $t1, return_border_collision # branch if v0 is greater than board height -> border collision
+    
+    # NO COLLISION -> return 0
+    b return_no_border_collision
+    
+
 # Function to check if moving down would result in a BORDER collision, returns 0 if no collision occurs and -1 otherwise
 check_bottom_border_collision:
     # ARGUMENTS: none, we can calculate new position from $s1 and $s2
     # RETURNS:
-    # - $v0 which is equal to 0 when valid and -11 when invalid or collision
+    # - $v0 which is equal to 0 when valid and -1 when invalid or collision
     addi $sp, $sp, -4 # allocate space
     sw $ra, 0($sp) # push
     
@@ -340,6 +383,9 @@ leftmost_pixel:
     sw $ra, 0($sp) # push
     
     jal return_tetris_piece_data_address # load piece address
+    lw $t0, sizeof_piece_data # 64
+    mult $t0, $s0, $t0  # account for different positions: position number * offset (64)
+    add $v0, $v0, $t0 # add offset to address
     
     # Column 4
     move $a0, $v0
@@ -384,6 +430,9 @@ rightmost_pixel:
     sw $ra, 0($sp) # push
     
     jal return_tetris_piece_data_address # load piece address
+    lw $t0, sizeof_piece_data # 64
+    mult $t0, $s0, $t0  # account for different positions: position number * offset (64)
+    add $v0, $v0, $t0 # add offset to address
     add $v0, $v0, 12 # move piece address to last column starting searching from right to left 
     
     # Column 1
@@ -539,6 +588,11 @@ quit:
 	syscall
 	
 w_key:
+    jal check_rotate_border_collision
+    move $s0, $t3  # since check_rotate changes s0, switch it back to what it was previously
+    beq $v0, $zero, w_key_move  # if equal to 0, no collision found
+    j keyboard_input_exit
+w_key_move:
     # change current piece orientation
     add $s0, $s0, 1 # add 1 to current position
     li $t0, 4
@@ -842,10 +896,11 @@ generate_new_piece:
     sw $ra, 0($sp) # push
     
     # Generate a random number between 0 and 6
-    li $v0, 42 # command for random number generation
-    li $a0, 0  # random number generator ID
-    li $a1, 7  # maximum value is exclusive
-    syscall # stores return value in $a0
+    # li $v0, 42 # command for random number generation
+    # li $a0, 0  # random number generator ID
+    # li $a1, 7  # maximum value is exclusive
+    # syscall # stores return value in $a0
+    li $a0, 4
     
     move $s3, $a0  # move to where we are storing the piece type
     
