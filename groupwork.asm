@@ -232,7 +232,7 @@ main:
 	
 	lw $s1, field_wdth		# load field width
 	srl $s1, $s1, 1			# divide by 2 to get the initial x coordinate of tetromino
-	addi $s1, $s1, -1		# subtract 1 to center it
+	addi $s1, $s1, -2		# subtract 1 to center it
 	li $s2, 0			# load 0 as initial y coordinate of tetromino
 	li $s3, 0			# load 0 as initial orientation of tetromino
 	li $s4, 0			# set game over flag to 0
@@ -407,7 +407,7 @@ generate_tmino:
 	
 	lw $s1, field_wdth		# load field width
 	srl $s1, $s1, 1			# divide by 2 to get the initial x coordinate of tetromino
-	addi $s1, $s1, -1		# subtract 1 to center it
+	addi $s1, $s1, -2		# add 2 to center it
 	li $s2, -1			# load 0 as initial y coordinate of tetromino
 	li $s3, 0			# load 0 as initial orientation of tetromino
 	move $a0, $s0			# $a0 = tetromino memory address
@@ -417,6 +417,7 @@ generate_tmino:
 	jal check_collision		# check for possible collision
 	beqz $v0, draw_screen		# if there is no collision, continue
 	li $s4, 1			# else, set the game over flag
+	b quit
 	# 3. Draw the screen
 draw_screen:
 	jal draw_field			# draw the field
