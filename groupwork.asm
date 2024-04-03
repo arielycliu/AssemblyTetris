@@ -186,88 +186,87 @@
 		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
 		.word 0x00000000, 0x00FF7F00, 0x00FF7F00, 0x00000000
 		
-	      
 	PITCH: .word 76, 71, 72, 74
-           .word 76, 74, 72, 71
-           .word 69, 69, 72, 76
-           .word 74, 72, 71, 0
-           .word 72, 74, 76, 72
-           .word 69, 69, 0, 0
-           .word 74, 77, 81, 79
-           .word 77, 76, 72, 76
-           .word 74, 72, 71, 71
-           .word 72, 74, 76, 72
-           .word 69, 69, 0, 76
-           .word 71, 72, 74, 76
-           .word 74, 72, 71, 69
-           .word 69, 72, 76, 74
-           .word 72, 71, 0, 72
-           .word 74, 76, 72, 69
-           .word 69, 0, 0, 74
-           .word 77, 81, 79, 77
-           .word 76, 72, 76, 74
-           .word 72, 71, 71, 72
-           .word 74, 76, 72, 69
-           .word 69, 0, 64, 60
-           .word 62, 59, 60, 57
-           .word 56, 0, 64, 60
-           .word 62, 59, 60, 64
-           .word 69, 69, 68, 0
+       .word 76, 74, 72, 71
+       .word 69, 69, 72, 76
+       .word 74, 72, 71, 0
+       .word 72, 74, 76, 72
+       .word 69, 69, 0, 0
+       .word 74, 77, 81, 79
+       .word 77, 76, 72, 76
+       .word 74, 72, 71, 71
+       .word 72, 74, 76, 72
+       .word 69, 69, 0, 76
+       .word 71, 72, 74, 76
+       .word 74, 72, 71, 69
+       .word 69, 72, 76, 74
+       .word 72, 71, 0, 72
+       .word 74, 76, 72, 69
+       .word 69, 0, 0, 74
+       .word 77, 81, 79, 77
+       .word 76, 72, 76, 74
+       .word 72, 71, 71, 72
+       .word 74, 76, 72, 69
+       .word 69, 0, 64, 60
+       .word 62, 59, 60, 57
+       .word 56, 0, 64, 60
+       .word 62, 59, 60, 64
+       .word 69, 69, 68, 0
 
-    DURATION: .word 416, 208, 208, 208
-              .word 104, 104, 208, 208
-              .word 416, 208, 208, 416
-              .word 208, 208, 416, 208
-              .word 208, 416, 416, 416
-              .word 416, 416, 416, 208
-              .word 416, 208, 416, 208
-              .word 208, 624, 208, 416
-              .word 208, 208, 416, 208
-              .word 208, 416, 416, 416
-              .word 416, 416, 416, 416
-              .word 208, 208, 208, 104
-              .word 104, 208, 208, 416
-              .word 208, 208, 416, 208
-              .word 208, 416, 208, 208
-              .word 416, 416, 416, 416
-              .word 416, 416, 208, 416
-              .word 208, 416, 208, 208
-              .word 624, 208, 416, 208
-              .word 208, 416, 208, 208
-              .word 416, 416, 416, 416
-              .word 416, 416, 832, 832
-              .word 832, 832, 832, 832
-              .word 1248, 416, 832, 832
-              .word 832, 832, 416, 416
-              .word 416, 416, 832, 832
+DURATION: .word 404, 202, 202, 202
+          .word 101, 101, 202, 202
+          .word 404, 202, 202, 404
+          .word 202, 202, 404, 202
+          .word 202, 404, 404, 404
+          .word 404, 404, 404, 202
+          .word 404, 202, 404, 202
+          .word 202, 606, 202, 404
+          .word 202, 202, 404, 202
+          .word 202, 404, 404, 404
+          .word 404, 404, 404, 404
+          .word 202, 202, 202, 101
+          .word 101, 202, 202, 404
+          .word 202, 202, 404, 202
+          .word 202, 404, 202, 202
+          .word 404, 404, 404, 404
+          .word 404, 404, 202, 404
+          .word 202, 404, 202, 202
+          .word 606, 202, 404, 202
+          .word 202, 404, 202, 202
+          .word 404, 404, 404, 404
+          .word 404, 404, 808, 808
+          .word 808, 808, 808, 808
+          .word 1212, 404, 808, 808
+          .word 808, 808, 404, 404
+          .word 404, 404, 808, 808
 
-    VOLUME: .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 0
-            .word 100, 100, 100, 100
-            .word 100, 100, 0, 0
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 0, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 0, 100
-            .word 100, 100, 100, 100
-            .word 100, 0, 0, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 0, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 0, 100, 100
-            .word 100, 100, 100, 100
-            .word 100, 100, 100, 0
-	
+VOLUME: .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 0
+        .word 100, 100, 100, 100
+        .word 100, 100, 0, 0
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 0, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 0, 100
+        .word 100, 100, 100, 100
+        .word 100, 0, 0, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 0, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 0, 100, 100
+        .word 100, 100, 100, 100
+        .word 100, 100, 100, 0
+
     
     music_counter: .word 0
     
@@ -345,6 +344,7 @@ main:
 	move $a2, $s1			# $a2 = tetromino block x coordinate
 	move $a3, $s2			# $a3 = tetromino block y coordinate
 	jal draw_tmino			# draw the current tetromino
+	
 game_loop:
 	# 1a. Check if key has been pressed
 	lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
@@ -377,7 +377,7 @@ gravity:
     b game_sleep
 increase_gravity:
     lw $t1, gravity_time # read gravity ratio
-    addi $t1, $t1, -0x0000FF  # subtract one to decrease time till block falls
+    addi $t1, $t1, -0x00000F # -0x0000FF  # subtract one to decrease time till block falls
     sw $t1, gravity_time # save change    
     
     jal move_down  # move block down
@@ -415,12 +415,12 @@ move_right:
 	addi $s1, $s1, 1		# increment the x coordinate to move right
 	b draw_screen			# jump to draw screen
 pause:
-    li $v0, 33    # async play note syscall
-    li $a0, 78    # midi pitch
-    li $a1, 1  # duration
-    li $a2, 90     # instrument
-    li $a3, 100   # volume
-    syscall
+    # li $v0, 33    # async play note syscall
+    # li $a0, 78    # midi pitch
+    # li $a1, 1  # duration
+    # li $a2, 90     # instrument
+    # li $a3, 100   # volume
+    # syscall
     jal draw_paused_screen
 pause2:
     # play tetris theme
@@ -443,7 +443,7 @@ pause2:
     # increment music counter
     lw $t1, music_counter
     add $t1, $t1, 1
-    li $t0, 24  # mod by note count
+    li $t0, 104  # mod by note count
     div $t1, $t0
     mfhi $t1
     sw $t1, music_counter
