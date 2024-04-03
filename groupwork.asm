@@ -192,21 +192,47 @@
 	       .word 69, 69, 72, 76
 	       .word 74, 72, 71, 71
 	       .word 72, 74, 76, 72
-	       .word 69, 69, 69
+	       .word 69, 69, 69, 72
 	       
 	RESTS: .word 512, 256, 256, 256
 	       .word 128, 128, 256, 256
 	       .word 512, 256, 256, 512
 	       .word 256, 256, 512, 256
 	       .word 256, 512, 512, 512
-	       .word 512, 512, 100
+	       .word 512, 512, 100, 512
+	       
+	VOLUME: .word 100, 100, 100, 100
+	        .word 100, 100, 100, 100
+	        .word 100, 100, 100, 100
+	        .word 100, 100, 100, 100
+	        .word 100, 100, 100, 100
+	        .word 100, 100, 0, 0
     
     music_counter: .word 0
     
     gravity_count: .word 0
     gravity_time: .word 0x0FFFFF
     decrease_gravity_time_count: .word 0
-
+    
+    GG: .word 0x00000000, 0x00000000, 0x00FFFFFF, 0x00FFFFFF
+        .word 0x00FFFFFF, 0x00000000, 0x00000000, 0x00FFFFFF
+        .word 0x00FFFFFF, 0x00FFFFFF, 0x00000000, 0x00000000
+        .word 0x00000000, 0x00FFFFFF, 0x00000000, 0x00000000
+        .word 0x00000000, 0x00000000, 0x00FFFFFF, 0x00000000
+        .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+        .word 0x00000000, 0x00FFFFFF, 0x00000000, 0x00000000
+        .word 0x00000000, 0x00000000, 0x00FFFFFF, 0x00000000
+        .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+        .word 0x00000000, 0x00FFFFFF, 0x00000000, 0x00FFFFFF
+        .word 0x00FFFFFF, 0x00000000, 0x00FFFFFF, 0x00000000
+        .word 0x00FFFFFF, 0x00FFFFFF, 0x00000000, 0x00000000
+        .word 0x00000000, 0x00FFFFFF, 0x00000000, 0x00000000 
+        .word 0x00FFFFFF, 0x00000000, 0x00FFFFFF, 0x00000000 
+        .word 0x00000000, 0x00FFFFFF, 0x00000000, 0x00000000
+        .word 0x00000000, 0x00000000, 0x00FFFFFF, 0x00FFFFFF 
+        .word 0x00000000, 0x00000000, 0x00000000, 0x00FFFFFF 
+        .word 0x00FFFFFF, 0x00000000, 0x00000000, 0x00000000
+    
 ##############################################################################
 # Mutable Data
 ##############################################################################
@@ -336,18 +362,21 @@ pause:
     syscall
     jal draw_paused_screen
 pause2:
+    # play tetris theme
     li $t0, 4
 	lw $t1, music_counter
 	mult $t1, $t1, $t0 # calc offset
 	la $t2, NOTES
 	la $t3, RESTS
+	la $t4, VOLUME
 	add $t2, $t2, $t1 # add offset to notes and rests address
 	add $t3, $t3, $t1 
+	add $t4, $t4, $t1 
 	li $v0, 33
     lw $a0, 0($t2)
     lw $a1, 0($t3)
     li $a2, 0
-    li $a3, 100
+    lw $a3, 0($t4)
     syscall # music note
     
     # increment music counter
@@ -484,12 +513,110 @@ quit:
     li $a3, 127   # volume
     syscall
     
-    b draw_quit
-	# li $v0, 10              	# terminate the program gracefully
-	# syscall
-	
-draw_quit:
+    jal draw_quit_screen_top
+    jal draw_quit_screen_middle
+    jal draw_quit_screen_bottom
     
+    b quit_wait
+    
+quit_wait:
+    lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+	lw $t8, 0($t0)                  # load first word from keyboard
+	beq $t8, 1, quit_key_pressed      # if first word 1, key is pressed
+	b quit_wait
+quit_key_pressed:
+    lw $a0, 4($t0)                  # load second word from keyboard
+    beq $a0, 0x71, quit_program  # if it's q then fully quit
+    beq $a0, 0x72, restart  # if it's r then restart
+    b quit_wait # otherwise loop back to waiting
+restart:
+    b main
+    
+quit_program:
+	li $v0, 10              	# terminate the program gracefully
+	syscall
+	
+draw_quit_screen_top:
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    lw $t0, ADDR_DSPL	# load display base address
+    lw $t1, dspl_wdth_unit	# load game field width
+	li $t2, 13  	# load game field height
+	li $t3, 0		# initialize height counter
+draw_quit_black_top:
+    li $t4, 0		# initialize width counter
+draw_quit_rowblack_top:
+    sw $zero, 0($t0)
+quit_continue_loop_top:
+	add $t0, $t0, 4		# increment the display pointer
+	add $t4, $t4, 1		# increment the width counter
+	bne $t4, $t1, draw_quit_rowblack_top	# loop until it reaches the width value
+	# add $t0, $t0, 4		# increment the display pointer to skip the right wall
+	add $t3, $t3, 1		# increment the height counter
+	bne $t3, $t2, draw_quit_black_top	# loop until it reaches the height value
+
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
+
+draw_quit_screen_middle:
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+
+    la $t7, GG
+    lw $t0, ADDR_DSPL	# load display base address
+    lw $t1, dspl_wdth_unit	# load game field width
+	li $t2, 6	# load game field height
+	li $t3, 0		# initialize height counter
+	addi $t0, $t0, 624  # offset starting row
+draw_quit_black_middle:
+    li $t4, 0		# initialize width counter
+draw_quit_rowblack_middle:
+    lw $t9, 0($t7) # load pixel from GG
+    sw $t9, 0($t0) # color
+quit_continue_loop_middle:
+	add $t0, $t0, 4		# increment the display pointer
+	add $t7, $t7, 4     # increment the GG counter
+	add $t4, $t4, 1		# increment the width counter
+	bne $t4, $t1, draw_quit_rowblack_middle	# loop until it reaches the width value
+	# add $t0, $t0, 4		# increment the display pointer to skip the right wall
+	add $t3, $t3, 1		# increment the height counter
+	bne $t3, $t2, draw_quit_black_middle	# loop until it reaches the height value
+
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
+
+draw_quit_screen_bottom:
+    addi $sp, $sp, -4 # allocate space
+    sw $ra, 0($sp) # push
+    
+    lw $t0, ADDR_DSPL	# load display base address
+    lw $t1, dspl_wdth_unit	# load game field width
+	lw $t2, dspl_hght_unit	# load game field height
+	li $t3, 15		# initialize height counter
+	addi $t0, $t0, 912  # offset starting row
+draw_quit_black_bottom:
+    li $t4, 0		# initialize width counter
+draw_quit_rowblack_bottom:
+    sw $zero, 0($t0)
+quit_continue_loop_bottom:
+	add $t0, $t0, 4		# increment the display pointer
+	add $t4, $t4, 1		# increment the width counter
+	bne $t4, $t1, draw_quit_rowblack_bottom	# loop until it reaches the width value
+	# add $t0, $t0, 4		# increment the display pointer to skip the right wall
+	add $t3, $t3, 1		# increment the height counter
+	bne $t3, $t2, draw_quit_black_bottom	# loop until it reaches the height value
+
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
+
+
 
 # check collision
 # $a0 = tetromino memory address
