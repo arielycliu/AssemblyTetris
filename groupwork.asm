@@ -19,6 +19,7 @@
 	dark_grey: 	.word 0x00C0C0C0	# Dark grey color
 	black: 		.word 0x00000000	# Black color
     white:      .word 0x00FFFFFF
+    pause_grey: .word 0x00adadad
     
 	# Constants
 	dspl_wdth_unit:	.word 12       		# Unit display width
@@ -308,6 +309,12 @@ move_right:
 	addi $s1, $s1, 1		# increment the x coordinate to move right
 	b draw_screen			# jump to draw screen
 pause:
+    li $v0, 33    # async play note syscall
+    li $a0, 78    # midi pitch
+    li $a1, 1  # duration
+    li $a2, 90     # instrument
+    li $a3, 100   # volume
+    syscall
     jal draw_paused_screen
 pause2:
     lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
@@ -319,8 +326,20 @@ paused_key_pressed:
     beq $a0, 0x70, unpause  # if it's p then unpase
     b pause2 # otherwise loop back to pause
 unpause:
+        li $v0, 33    # async play note syscall
+    li $a0, 78    # midi pitch
+    li $a1, 1  # duration
+    li $a2, 90     # instrument
+    li $a3, 100   # volume
+    syscall
     b draw_screen
 drop:
+    li $v0, 33    # async play note syscall
+    li $a0, 78    # midi pitch
+    li $a1, 1  # duration
+    li $a2, 127     # instrument
+    li $a3, 50   # volume
+    syscall
     move $a0, $s0			# $a0 = tetromino memory address
 	move $a1, $s3			# $a1 = tetromino orientation
 	move $a2, $s1			# $a2 = tetromino block x coordinate
@@ -339,7 +358,7 @@ drop_by_one:
     addi $s2, $s2, 1	# increment y
     b drop  # loop back to drop further
 	
-move_down:
+move_down:    
 	move $a0, $s0			# $a0 = tetromino memory address
 	move $a1, $s3			# $a1 = tetromino orientation
 	move $a2, $s1			# $a2 = tetromino block x coordinate
@@ -359,6 +378,12 @@ cont_mdown:
 	addi $s2, $s2, 1		# else, increment the y coordinate to move down
 	b draw_screen			# jump to draw screen
 rotate:
+    li $v0, 33    # async play note syscall
+    li $a0, 60    # midi pitch
+    li $a1, 1  # duration
+    li $a2, 90     # instrument
+    li $a3, 100   # volume
+    syscall
 	move $a0, $s0			# $a0 = tetromino memory address
 	addi $a1, $s3, 1		# $a1 = tetromino orientation + 1
 	move $a2, $s1			# $a2 = tetromino block x coordinate
@@ -383,7 +408,7 @@ generate_tmino:
 	lw $s1, field_wdth		# load field width
 	srl $s1, $s1, 1			# divide by 2 to get the initial x coordinate of tetromino
 	addi $s1, $s1, -1		# subtract 1 to center it
-	li $s2, 0			# load 0 as initial y coordinate of tetromino
+	li $s2, -1			# load 0 as initial y coordinate of tetromino
 	li $s3, 0			# load 0 as initial orientation of tetromino
 	move $a0, $s0			# $a0 = tetromino memory address
 	move $a1, $s3			# $a1 = tetromino orientation
@@ -409,6 +434,13 @@ game_sleep:
     # 5. Go back to 1
 	b game_loop			# repeat all over again
 quit:
+    li $v0, 31    # async play note syscall
+    li $a0, 60    # midi pitch
+    li $a1, 1000  # duration
+    li $a2, 90     # instrument
+    li $a3, 127   # volume
+    syscall
+    
 	li $v0, 10              	# terminate the program gracefully
 	syscall
 	
@@ -787,6 +819,7 @@ return_L_piece_address:
     la $v0, L0
     j return_tetris_piece_data_address_exit
 
+
 # Function that draws screen by decreasing the saturation of the color
 draw_paused_screen:
     addi $sp, $sp, -4 # allocate space
@@ -800,8 +833,20 @@ draw_paused:
     li $t4, 0		# initialize width counter
 draw_paused_row:
     lw $t5, 0($t0)		# load pixel from the display
-    add $t5, $t5, -20
-	sw $t5, 0($t0)		# draw it on the display
+    lw $t6, light_grey
+    beq $t5, $t6, draw_paused_skip_pixel
+    lw $t6, dark_grey
+    beq $t5, $t6, draw_paused_skip_pixel
+    b draw_paused_pixel
+    
+draw_paused_skip_pixel:
+    b continue_loop
+draw_paused_pixel:
+    lw $t5, pause_grey
+    sw $t5, 0($t0)		# draw it on the display
+    b continue_loop
+    
+continue_loop:
 	add $t0, $t0, 4		# increment the display pointer
 	add $t4, $t4, 1		# increment the width counter
 	bne $t4, $t1, draw_paused_row	# loop until it reaches the width value
@@ -813,4 +858,3 @@ draw_paused_row:
     lw $ra, 0($sp) # pop value
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra
-    
