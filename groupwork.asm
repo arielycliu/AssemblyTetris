@@ -185,6 +185,23 @@
 		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
 		.word 0x00000000, 0x00FF7F00, 0x00000000, 0x00000000
 		.word 0x00000000, 0x00FF7F00, 0x00FF7F00, 0x00000000
+		
+	# GG: .word 
+	NOTES: .word 76, 71, 72, 74
+	       .word 76, 74, 72, 71
+	       .word 69, 69, 72, 76
+	       .word 74, 72, 71, 71
+	       .word 72, 74, 76, 72
+	       .word 69, 69, 69
+	       
+	RESTS: .word 512, 256, 256, 256
+	       .word 128, 128, 256, 256
+	       .word 512, 256, 256, 512
+	       .word 256, 256, 512, 256
+	       .word 256, 512, 512, 512
+	       .word 512, 512, 100
+    
+    music_counter: .word 0
     
     gravity_count: .word 0
     gravity_time: .word 0x0FFFFF
@@ -246,7 +263,7 @@ game_loop:
 	lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
 	lw $t8, 0($t0)                  # load first word from keyboard
 	beq $t8, 1, keyboard_input      # if first word 1, key is pressed
-	
+    	
 	# Gravity_count: counts up from 0 to gravity_time, when it hits gravity_time -> drop block by 1 y coord
 	# Gravity_time: upper limit for gravity_count
 	# decrease_gravity_time_count: counts up from 0 to 10, when it hits 10 -> decrease gravity_time by 1
@@ -269,11 +286,13 @@ gravity:
     bgt $t3, $t2, increase_gravity  # time to decrease gravity_time
     
     jal move_down  # move block down
+    
     b game_sleep
 increase_gravity:
     lw $t1, gravity_time # read gravity ratio
     addi $t1, $t1, -0x0000FF  # subtract one to decrease time till block falls
-    sw $t1, gravity_time # save change
+    sw $t1, gravity_time # save change    
+    
     jal move_down  # move block down
 
 keyboard_input:
@@ -317,6 +336,28 @@ pause:
     syscall
     jal draw_paused_screen
 pause2:
+    li $t0, 4
+	lw $t1, music_counter
+	mult $t1, $t1, $t0 # calc offset
+	la $t2, NOTES
+	la $t3, RESTS
+	add $t2, $t2, $t1 # add offset to notes and rests address
+	add $t3, $t3, $t1 
+	li $v0, 33
+    lw $a0, 0($t2)
+    lw $a1, 0($t3)
+    li $a2, 0
+    li $a3, 100
+    syscall # music note
+    
+    # increment music counter
+    lw $t1, music_counter
+    add $t1, $t1, 1
+    li $t0, 24  # mod by note count
+    div $t1, $t0
+    mfhi $t1
+    sw $t1, music_counter
+    
     lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
 	lw $t8, 0($t0)                  # load first word from keyboard
 	beq $t8, 1, paused_key_pressed      # if first word 1, key is pressed
@@ -326,10 +367,11 @@ paused_key_pressed:
     beq $a0, 0x70, unpause  # if it's p then unpase
     b pause2 # otherwise loop back to pause
 unpause:
-        li $v0, 33    # async play note syscall
+    sw $zero, music_counter  # reset counter
+    li $v0, 33    # async play note syscall
     li $a0, 78    # midi pitch
     li $a1, 1  # duration
-    li $a2, 90     # instrument
+    li $a2, 103     # instrument
     li $a3, 100   # volume
     syscall
     b draw_screen
@@ -442,9 +484,13 @@ quit:
     li $a3, 127   # volume
     syscall
     
-	li $v0, 10              	# terminate the program gracefully
-	syscall
+    b draw_quit
+	# li $v0, 10              	# terminate the program gracefully
+	# syscall
 	
+draw_quit:
+    
+
 # check collision
 # $a0 = tetromino memory address
 # $a1 = tetromino orientation (can be 0, 1, 2, 3)
