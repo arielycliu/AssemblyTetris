@@ -252,13 +252,17 @@ game_loop:
     # 1b. Check which key has been pressed
     jal check_for_key_press
     
+    # jal draw_checkerboard
+    
     # 2a. Check for collisions
 	# 2b. Update locations (paddle, ball)
 	# 3. Draw the screen
+	# add $s2, $s2, 1
+	jal draw_current_piece
 	
 	# 4. Sleep
     li $v0, 32
-    li $a0, 60  # sleep for 100 milliseconds
+    li $a0, 1000  # sleep for 100 milliseconds
     #5. Go back to 1
     b game_loop
 
@@ -594,6 +598,17 @@ w_key:
     jal check_rotate_border_collision
     move $s0, $t3  # since check_rotate changes s0, switch it back to what it was previously
     beq $v0, $zero, w_key_move  # if equal to 0, no collision found
+    
+    move $s5, $s0 # save cur value of position
+    # change current piece orientation
+    add $s0, $s0, 1 # add 1 to current position
+    li $t0, 4
+    div $s0, $t0  # find newpos % 4 so that the position changes wrap around
+    mfhi $s0   # store this remainder as the new position
+    jal check_piece_collision
+    move $s0, $s5
+    beq $v0, $zero, w_key_move  # if equal to 0, no collision found
+    
     j keyboard_input_exit
 w_key_move:
     # change current piece orientation
@@ -606,6 +621,12 @@ w_key_move:
 a_key:
     jal check_left_border_collision
     beq $v0, $zero, a_key_move  # if equal to 0, no collision found
+    
+    addi $s1, $s1, -1
+    jal check_piece_collision
+    addi $s1, $s1, 1    
+    beq $v0, $zero, a_key_move  # if equal to 0, no collision found
+    
     j keyboard_input_exit
 a_key_move:
     addi $s1, $s1, -1
@@ -614,6 +635,11 @@ a_key_move:
 s_key:
     jal check_bottom_border_collision
     beq $v0, $zero, s_key_move  # if equal to 0, aka no collision then move down
+    
+    addi $s2, $s2, 1
+    jal check_piece_collision
+    addi $s2, $s2, -1
+    beq $v0, $zero, s_key_move  # if equal to 0, no collision found
     
     jal store_current_piece_in_board_state # if we hit the bottom then this piece is dead
     jal generate_new_piece # create new piece
@@ -625,6 +651,12 @@ s_key_move:
 d_key:
     jal check_right_border_collision
     beq $v0, $zero, d_key_move  # if equal to 0, aka no collision then move right
+    
+    addi $s1, $s1, 1
+    jal check_piece_collision
+    addi $s1, $s1, -1
+    beq $v0, $zero, w_key_move  # if equal to 0, no collision found
+    
     j keyboard_input_exit
 d_key_move:
     addi $s1, $s1, 1
@@ -642,7 +674,8 @@ draw_dead_pieces:
     
     li $a0, 0 # x
     li $a1, 0 # y
-    jal calc_offset_board # RETURNS: $v0 calculated offset for writing to display
+    jal calc_offset_board # RETURNS: address for writing to display (top square of game board)
+    
     move $s6, $v0 # write to this address
     
     li $s5, 0 # row count
@@ -666,6 +699,7 @@ draw_dead_pieces_loop:
     move $a0, $zero  # x coord is still 0
     add $a1, $zero, $s5   # new y = rows_drawn
     jal calc_offset_board # calculate new display address
+    
     move $s6, $v0 # store new address
     
     lw $t1, BOARD_HEIGHT
@@ -803,7 +837,7 @@ store_current_piece_in_board_state:
     mul $t0, $t0, $s0  # calculate how much to move the address pointer by: $t0 = orientation * 64
     move $s4, $t0  # store the offset in the "future" address pointer - ARG for piece address
     li $s5, 0 # keeps track of pixels drawn in loop - ARG for row count
-    jal calc_offset_board_state  # returns address to write to board_state in $v0
+    jal calc_offset_board_state  # returns address to write to board_state in $v0 based on s1 and s2 coords
     move $s6, $v0 # store in s6 - ARG for writing address
 
     # Branching logic
@@ -945,7 +979,19 @@ draw_current_piece:
     
     addi $sp, $sp, -4 # allocate space
     sw $ra, 0($sp) # push
+    
+    # subtract one from y since this function will add one
+    add $s2, $s2, -1
+    jal check_bottom_border_collision
+    add $s2, $s2, 1
+    beq $v0, $zero, draw_current_piece_2  # if equal to 0, aka no collision then move down
+    
+    # Otherwise, activate return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
 
+draw_current_piece_2:
     # Prep for loop    
     # calculate offset based on current orientation
     lw $t0, sizeof_piece_data  # 64 or piece offset (16 * 4)
@@ -960,6 +1006,7 @@ draw_current_piece:
     move $a0, $s1 # set x argument
     move $a1, $s2 # set y argument
     jal calc_offset_board  # returns display address at $v0, does not impact $s4
+    
     move $s6, $v0 # store in s6 to avoid getting overwritten - ARG for display address
 
     jal return_tetris_piece_data_address # store piece addres in $v0
@@ -1015,7 +1062,7 @@ draw_current_piece_loop:
     li $t2, -1
     beq $s6, $t2, draw_current_piece_loop_exit
     
-    # if pixels drawn >= 4
+    # if pixels drawn >= 4, continue drawing
     lw $t1, numofrows_piece_data
     blt $s5, $t1, draw_current_piece_loop
     
@@ -1224,10 +1271,10 @@ calc_offset_board:
     lw $t0, BOARD_WIDTH # load in global variables
     lw $t1, BOARD_HEIGHT
     
-    # if x_coordinate >= BOARD_WIDTH: error return -1 
-    bge $a0, $t0, calc_offset_board_ERROR
-    # if y_coordinate >= BOARD_HEIGHT: error return -1 
-    bge $a1, $t1, calc_offset_board_ERROR
+    # if x_coordinate >= BOARD_WIDTH: error return fixed value
+    bge $a0, $t0, calc_offset_board_ERROR_horizontal
+    # if y_coordinate >= BOARD_HEIGHT: error return fixed value
+    bge $a1, $t1, calc_offset_board_ERROR_vertical
     
     # call center_board to find top left corner of board
     jal center_board    
@@ -1247,14 +1294,36 @@ calc_offset_board:
     lw $ra, 0($sp) # load last return address to stack
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra # return
-# Error function: returns -1 stored at $v0 if the new coordinate is invalid
-calc_offset_board_ERROR:
-    li $v0, -1
+# Error function: returns valid coordinate
+calc_offset_board_ERROR_horizontal:
+    li $a0, 9 # fix x coord to maximum    
+    jal center_board   
+    add $a0, $a0, $v0 # take x coord in board and add to top left corner of board in display coords
+    add $a1, $a1, $v1 # do the same for y
     
+    li $v0, -1 # print error
     move $a0, $v0
     li $v0, 1
     syscall
     
+    jal calc_offset_display  # returns offset for writing to display in $v0
+
+    lw $ra, 0($sp) # load last return address to stack
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra # return
+calc_offset_board_ERROR_vertical:
+    li $a0, 19 # fix y coord to maximum    
+    jal center_board   
+    add $a0, $a0, $v0 # take x coord in board and add to top left corner of board in display coords
+    add $a1, $a1, $v1 # do the same for y
+    
+    li $v0, -1 # print error
+    move $a0, $v0
+    li $v0, 1
+    syscall
+    
+    jal calc_offset_display  # returns offset for writing to display in $v0
+
     lw $ra, 0($sp) # load last return address to stack
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra # return
@@ -1425,3 +1494,73 @@ draw_checkerboard_helper: # helper function that draws one row
     addi $sp, $sp, 4 # deallocate space on stack
     jr $ra
     
+return_func:
+    # Return logic
+    lw $ra, 0($sp) # pop value
+    addi $sp, $sp, 4 # deallocate space on stack
+    jr $ra
+
+
+
+
+
+
+
+# Function that returns if there would be a piece collision with the current s0-s3 attributes
+# Be careful not to overwrite s5 which stores the previous orientation
+check_piece_collision:
+    # ARGUMENTS:
+    # $s0 - orientation
+    # $s1 - x
+    # $s2 - y
+    # $s3 - type
+    # RETURNS:
+    # $v0 = 0 if no collision, -1 otherwise
+	la $t0, board_state	 # load base address of where we store old piece
+	lw $t1, BOARD_WIDTH	 # load board width
+	lw $t2, sizeof_piece_data  # load tetromino offset - 64
+	mul $t2, $t2, $s0  # multiply the offset by orientation value
+	
+	jal return_tetris_piece_data_address
+	add $a0, $v0, $t2  # add this offset to the base address of tetromino
+	
+	lw $t2, BOARD_HEIGHT  # load game field height
+	move $a1, $s1  # copy x to $a1 so that we can reset x between rows
+	li $v0, 0  # initialize return value to 0 (for no collision)
+	li $t4, 4  # load tetromino block height	
+check_next:
+	li $t5, 4	# load tetromino block width
+check_row:
+	lw $t6, 0($a0)  # load tetromino pixel
+	beqz $t6, loop_collision_check  # if empty, skip it
+	bltz $a1, collision_found	# else, if x < 0, set the return value to -1, collision
+	bge $a1, $t1, collision_found	# else, if x >= field width, set the return value to -1, collision
+	bge $s2, $t2, collision_found	# else, if y >= field height, set the return value to -1, collision
+	b check_field		# else, jump to check the field pixel
+collision_found:
+	li $v0, -1		# set collision to -1 (wall collision happened)
+	b exit_collision_check		# and jump to return
+check_field:
+	mul $t8, $t1, $s2	# $t8 = field width * y
+	add $t8, $t8, $a1	# $t8 = field width * y + x
+	sll $t8, $t8, 2		# multiply by 4 to get the offset in bytes
+	add $t8, $t8, $t0	# add the offset to the base address of the game field 
+	lw $t9, 0($t8)		# load pixel from the game field
+	lw $t7, light_grey	# load light grey to compare
+	beq $t9, $t7, loop_collision_check	# if the pixel is light grey, continue, no collison happened
+	lw $t7, dark_grey	# load dark grey to compare
+	beq $t9, $t7, loop_collision_check	# if the pixel is dark grey, continue, no collison happened
+	li $v0, 1	# otherwise, we collided with a piece - set collision to 1 (tetromino collision happened)
+	b exit_collision_check	# and jump to return
+# function that increments pointers for one row
+loop_collision_check: 
+	addi $a0, $a0, 4  # increment the tetromino block pointer
+	addi $a1, $a1, 1  # increment x
+	addi $t5, $t5, -1  # decrement the counter for width
+	bnez $t5, check_row	# loop for every pixel in the row
+	addi $s2, $s2, 1  # increment y
+	move $a1, $s1  # reset x using data we stored at beginning
+	addi $t4, $t4, -1  # decrement the height counter
+	bnez $t4, check_next # loop for every row, until row counter is 0
+exit_collision_check:
+	jr $ra	# return
